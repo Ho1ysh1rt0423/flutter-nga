@@ -1,52 +1,11 @@
-import 'dart:math' as math;
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_nga/ui/widget/username_text.dart';
 
 void main() {
-  testWidgets('uses a stable color for the same user', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: Column(
-            children: [
-              UsernameText(username: 'Alice', uid: 1),
-              UsernameText(username: 'Alice', uid: 1),
-              UsernameText(username: 'Bob', uid: 2),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    expect(_badgeBackground(tester, 0), _badgeBackground(tester, 1));
-    expect(_badgeBackground(tester, 0), isNot(_badgeBackground(tester, 2)));
-  });
-
-  testWidgets('keeps username colors readable in both brightness modes', (
-    tester,
-  ) async {
-    for (final brightness in Brightness.values) {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData(brightness: brightness),
-          home: const Scaffold(body: UsernameText(username: '测试用户', uid: 123)),
-        ),
-      );
-
-      final contrast = _contrastRatio(
-        _badgeBackground(tester, 0),
-        _badgeForeground(tester, 0),
-      );
-      expect(contrast, greaterThanOrEqualTo(4.5));
-    }
-  });
-
-  testWidgets('keeps the first grapheme intact and exposes the full name', (
-    tester,
-  ) async {
+  testWidgets('renders the full username as plain text without a color badge',
+      (tester) async {
     const username = '👩‍💻Alice';
     final semantics = tester.ensureSemantics();
 
@@ -56,7 +15,8 @@ void main() {
       ),
     );
 
-    expect(_badgeText(tester, 0).data, '👩‍💻');
+    // 首字彩色块已取消：用户名整体平铺，不再单独上色第一个字
+    expect(_badgeContainers(tester), findsNothing);
     expect(find.bySemanticsLabel(username), findsOneWidget);
     semantics.dispose();
   });
@@ -159,40 +119,18 @@ Future<Uri> _tapUsername(WidgetTester tester, UsernameText username) async {
   return navigation;
 }
 
-Color _badgeBackground(WidgetTester tester, int index) {
-  final decoration =
-      _badgeContainer(tester, index).decoration! as BoxDecoration;
-  return decoration.color!;
-}
-
-Color _badgeForeground(WidgetTester tester, int index) {
-  return _badgeText(tester, index).style!.color!;
-}
-
-Container _badgeContainer(WidgetTester tester, int index) {
-  final badges = find.descendant(
+Finder _badgeContainers(WidgetTester tester) {
+  return find.descendant(
     of: find.byType(UsernameText),
     matching: find.byType(Container),
   );
-  return tester.widget<Container>(badges.at(index));
 }
 
 Text _badgeText(WidgetTester tester, int index) {
-  final badges = find.descendant(
-    of: find.byType(UsernameText),
-    matching: find.byType(Container),
-  );
+  final badges = _badgeContainers(tester);
   final text = find.descendant(
     of: badges.at(index),
     matching: find.byType(Text),
   );
   return tester.widget<Text>(text);
-}
-
-double _contrastRatio(Color first, Color second) {
-  final firstLuminance = first.computeLuminance();
-  final secondLuminance = second.computeLuminance();
-  final lighter = math.max(firstLuminance, secondLuminance);
-  final darker = math.min(firstLuminance, secondLuminance);
-  return (lighter + 0.05) / (darker + 0.05);
 }

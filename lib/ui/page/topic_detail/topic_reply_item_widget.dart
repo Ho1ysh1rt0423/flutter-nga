@@ -176,25 +176,57 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                         ),
                       ],
                     ),
-                    if (headerStats.isNotEmpty)
-                      Wrap(
-                        children: [
-                          for (final stat in headerStats)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 16),
-                              child: Text(
-                                stat,
-                                style: TextStyle(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.color,
-                                  fontSize: Dimen.bodySmall,
-                                ),
+                    Wrap(
+                      children: [
+                        for (final stat in headerStats)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 16),
+                            child: Text(
+                              stat,
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color,
+                                fontSize: Dimen.bodySmall,
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                        // 楼层号紧跟在发帖数右边（原先单独占一行挂在头像下面）
+                        Padding(
+                          padding: EdgeInsets.only(right: 16),
+                          child: Text(
+                            "[${widget.reply.lou} 楼]",
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.color,
+                              fontSize: Dimen.bodySmall,
+                            ),
+                          ),
+                        ),
+                        // 评论楼层标识
+                        if (widget.commentSource != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 0,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              "评论",
+                              style: TextStyle(
+                                color: colorScheme.onSecondaryContainer,
+                                fontSize: Dimen.labelSmall,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                     if (widget.medalList?.isNotEmpty ?? false)
                       Padding(
                         padding: const EdgeInsets.only(top: 6, right: 12),
@@ -206,46 +238,7 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
             ),
           ],
         ),
-        Row(
-          children: [
-            Padding(
-              padding: EdgeInsets.only(left: 16, bottom: 8),
-              child: Row(
-                children: [
-                  Text(
-                    "[${widget.reply.lou} 楼]",
-                    style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                      fontSize: Dimen.bodySmall,
-                    ),
-                  ),
-                  // 评论楼层标识
-                  if (widget.commentSource != null) ...[
-                    const SizedBox(width: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        "评论",
-                        style: TextStyle(
-                          color: colorScheme.onSecondaryContainer,
-                          fontSize: Dimen.labelSmall,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-        SizedBox(
+SizedBox(
           // 评论楼层隐藏"对主题发表了一条评论"占位标题
           height:
               widget.commentSource != null ||

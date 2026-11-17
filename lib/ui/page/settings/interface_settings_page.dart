@@ -14,7 +14,7 @@ class InterfaceSettingsPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text("界面设置")),
-      body: ReadableListPadding(
+body: ReadableListPadding(
         builder: (context, padding) => ListView(
           padding: padding,
           children: [
@@ -59,6 +59,25 @@ class InterfaceSettingsPage extends ConsumerWidget {
               trailing: Text(state.lineHeight.nameWithSize),
               subtitle: Text("用于控制贴子正文以及贴子列表的行间距"),
               onTap: () => _showLineHeightSelectionDialog(context, ref),
+            ),
+            Column(
+              children: [
+                ListTile(
+                  title: Text("表情大小"),
+                  trailing: Text("${state.emoticonSize.round()} px"),
+                  subtitle: Text("用于控制贴子内容里表情的显示大小"),
+                ),
+                Slider(
+                  value: state.emoticonSize,
+                  onChanged: (v) {
+                    notifier.setEmoticonSize(v);
+                  },
+                  min: InterfaceSettingsState.minEmoticonSize,
+                  max: InterfaceSettingsState.maxEmoticonSize,
+                  // 16–96 每档 4px
+                  divisions: 20,
+                ),
+              ],
             ),
           ],
         ),

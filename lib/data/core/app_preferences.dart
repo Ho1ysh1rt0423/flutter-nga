@@ -20,6 +20,7 @@ abstract final class PrefsKeys {
   static const uiContentSizeMultiple = 'ui_contentSizeMultiple';
   static const uiTitleSizeMultiple = 'ui_titleSizeMultiple';
   static const uiLineHeight = 'ui_lineHeight';
+  static const uiEmoticonSize = 'ui_emoticonSize';
 
   // BlocklistSettingsNotifier
   static const blocklistClientBlockEnabled = 'blocklist_clientBlockEnabled';
@@ -36,6 +37,7 @@ abstract final class PrefsKeys {
     uiContentSizeMultiple,
     uiTitleSizeMultiple,
     uiLineHeight,
+    uiEmoticonSize,
     blocklistClientBlockEnabled,
     blocklistListBlockEnabled,
     blocklistDetailsBlockEnabled,
