@@ -4,6 +4,7 @@ import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart
 import 'package:html/dom.dart' as dom;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_nga/ui/widget/collapse_widget.dart';
+import 'package:flutter_nga/ui/widget/photo_preview_launcher.dart';
 import 'package:flutter_nga/ui/widget/username_text.dart';
 import 'package:flutter_nga/utils/parser/content_parser.dart';
 import 'package:flutter_nga/utils/parser/nga_crypt.dart';
@@ -25,6 +26,7 @@ class NgaHtml extends StatelessWidget {
     super.key,
     this.textStyle,
     this.decorateBlocks = true,
+    this.enableImageTap = false,
   });
 
   final String html;
@@ -34,6 +36,10 @@ class NgaHtml extends StatelessWidget {
 
   /// 是否给引用块 / 表格加背景与边框（帖子正文开启，评论沿用默认外观）。
   final bool decorateBlocks;
+
+  /// 为 true 时（帖子正文），点击 `<img>` 打开图片预览页；评论等小图场景
+  /// 保持 false，避免误触。
+  final bool enableImageTap;
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +125,12 @@ class NgaHtml extends StatelessWidget {
         Routes.onLinkTap(context, url);
         return true;
       },
+      onTapImage: enableImageTap
+          ? (image) => openPhotoPreview(
+              context,
+              image.sources.isNotEmpty ? image.sources.first.url : null,
+            )
+          : null,
     );
   }
 }

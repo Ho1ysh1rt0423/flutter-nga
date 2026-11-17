@@ -1,12 +1,16 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_nga/data/entity/topic.dart';
 import 'package:flutter_nga/providers/settings/blocklist_settings_provider.dart';
 import 'package:flutter_nga/providers/settings/interface_settings_provider.dart';
 import 'package:flutter_nga/providers/topic/topic_history_provider.dart';
+import 'package:flutter_nga/providers/topic/topic_head_thumbnail_provider.dart';
 import 'package:flutter_nga/utils/code_utils.dart' as code_utils;
 import 'package:flutter_nga/utils/dimen.dart';
 import 'package:flutter_nga/utils/name_utils.dart' as name_utils;
+import 'package:flutter_nga/utils/picture_utils.dart' as picture_utils;
+import 'package:flutter_nga/ui/widget/photo_preview_launcher.dart';
 import 'package:flutter_nga/utils/route.dart';
 
 class TopicListItemWidget extends ConsumerWidget {
@@ -82,7 +86,16 @@ class TopicListItemWidget extends ConsumerWidget {
                       isRead: isRead,
                     ),
 
+                  // 配图（最多 3 张，对齐 NGA 原版）
+                  if (topic.attachmentUrls.isNotEmpty) ...[
                     const SizedBox(height: 8),
+                    _buildAttachmentPreview(context, topic.attachmentUrls),
+                  ] else if (topic.hasAttachment()) ...[
+                    // 列表接口没给 attachs（服务端按版块下发），退化为请求主楼首图
+                    _buildLazyThumbnail(context, ref, topic),
+                  ],
+
+                  const SizedBox(height: 8),
 
                     // 元信息行
                     _buildMetaRow(context, colorScheme, textTheme),
@@ -216,6 +229,77 @@ class TopicListItemWidget extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+
+  /// 服务端没给列表 `attachs` 时的兜底：异步取主楼首图。
+  ///
+  /// 加载中、没图、请求失败都返回空 —— 列表不留占位，避免滚动时布局跳动。
+  Widget _buildLazyThumbnail(
+    BuildContext context,
+    WidgetRef ref,
+    Topic topic,
+  ) {
+    final tid = topic.tid;
+    if (tid == null) return const SizedBox.shrink();
+    final async = ref.watch(topicHeadThumbnailProvider(tid));
+    // 只在拿到数据时显示；loading / error 都当「没有图」，不留占位
+    final url = async is AsyncData<String?> ? async.value : null;
+    if (url == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: _buildAttachmentPreview(context, [url]),
+    );
+  }
+
+  /// 列表配图：最多 3 张，按 16:10 裁切、圆角，间距均分整行宽度。
+  ///
+  /// 用 `.thumb.jpg` 缩略图地址，避免列表里直接拉原图（NGA 原图常有数 MB）。
+  /// 点击跳到图片预览页，与帖子内图片的交互一致。
+  Widget _buildAttachmentPreview(BuildContext context, List<String> urls) {
+    final widgets = <Widget>[];
+    for (final url in urls.take(Topic.maxListAttachmentCount)) {
+      widgets.add(
+        Expanded(
+          child: GestureDetector(
+            onTap: () => openPhotoPreview(context, url),
+            child: AspectRatio(
+              aspectRatio: 16 / 10,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: CachedNetworkImage(
+                  imageUrl: picture_utils.getThumbUrl(url),
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => ColoredBox(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                  ),
+                  errorWidget: (context, url, error) => ColoredBox(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final (index, widget) in widgets.indexed) ...[
+          if (index > 0) const SizedBox(width: 6),
+          widget,
+        ],
+      ],
     );
   }
 

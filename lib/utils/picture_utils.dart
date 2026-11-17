@@ -28,3 +28,15 @@ String getOriginalUrl(String url) {
     return url;
   }
 }
+
+/// 列表配图用的缩略图地址。
+///
+/// NGA 图床支持在原图地址后直接追加 `.thumb.jpg`（原图是 jpg / webp 都适用），
+/// 例如 `mon_xxx.jpg` → `mon_xxx.jpg.thumb.jpg`。已经是缩略图或带查询参数时
+/// 不再重复处理，避免拼出 `.thumb.jpg.thumb.jpg`。
+String getThumbUrl(String url) {
+  final trimmed = url.trim();
+  if (trimmed.isEmpty || !isOriginalUrl(trimmed)) return trimmed;
+  if (trimmed.contains('?')) return trimmed;
+  return '$trimmed$_THUMB_SUFFIX';
+}
