@@ -4,6 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > Flutter 开发的 NGA (艾泽拉斯国家地理) 论坛客户端。
 
+## ⚠️ 本仓库是个人 fork —— 先读本地文档再动手
+
+本仓库 = 上游 `loshine/flutter-nga` + **7 个本地定制提交**（截断抢救、列表配图、
+图片预览接线、UI 定制五项等）。改动前必读（均为本地未跟踪文件）：
+
+1. **`docs/PROJECT_MAP.md`** —— 架构拆解：每个模块在哪、负责什么、数据流、
+   rebase 冲突热点（第九节）
+2. **`docs/LOCAL_FEATURES.md`** —— 对比上游的全部定制功能清单（文件/机制/测试/状态），
+   以及「别 resurrect 的废弃方案」
+3. **`docs/DEV_GUIDE.md`** —— 环境导出、构建命令、真机排查、发布、上游同步流程、
+   15 条实测坑清单
+
+硬性约定：
+- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 271 全过）必须复现；
+  定制功能的专属测试清单在 LOCAL_FEATURES.md——**红了 = 上游改动破坏了定制**。
+- 装新 APK 到真机要等用户明确指令。
+- 拉上游：rebase（不打 merge），rebase 前打 `backup/` 快照分支，完成后推
+  `fork`（origin 只 fetch）。流程细节见 DEV_GUIDE.md 第五节。
+- 服务端字段解析必须防御性处理（字段可能缺失/变型，截断抢救数据什么都可能没有），
+  新增解析必须带「字段缺失」测试用例。
+
 ## 环境准备
 
 通过 [mise](https://mise.jdx.dev) 安装 `.tool-versions` 固定的 Flutter SDK，当前版本为 3.50.0。
