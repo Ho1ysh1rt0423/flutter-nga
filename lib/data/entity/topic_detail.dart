@@ -23,7 +23,10 @@ class TopicDetailData {
   /// 会回退为 1，界面必须提示「内容不完整」。
   final bool truncated;
 
-  final Topic topic;
+  /// 主题信息（`__T`）。NGA 的响应里 `__T` 排在楼层 `__R` 之后，截断抢救
+  /// 的数据经常只有楼层没有它 —— 此时为 null，界面标题回落到路由参数，
+  /// 热评列表为空。
+  final Topic? topic;
   final List<int> hotReplies;
 
   const TopicDetailData({
@@ -37,7 +40,7 @@ class TopicDetailData {
     required this.rows,
     required this.currentRows,
     required this.replyPageRows,
-    required this.topic,
+    this.topic,
     required this.hotReplies,
   });
 
@@ -45,9 +48,12 @@ class TopicDetailData {
     Map<String, dynamic> map, {
     bool truncated = false,
   }) {
-    final userMap = asJsonMap(map["__U"], 'TopicDetailData.__U');
-    final replyMap = asJsonMap(map["__R"], 'TopicDetailData.__R');
-    final topicInfoMap = asJsonMap(map["__T"], 'TopicDetailData.__T');
+    // 抢救数据按「保留到截断点前最后一个完整对象」裁剪，__U / __T / 总览
+    // 字段都可能缺失（__T 排在 __R 之后，缺得最勤），全部容错为空。
+    final userMap = asJsonMapOrNull(map["__U"], 'TopicDetailData.__U') ?? {};
+    final replyMap = asJsonMapOrNull(map["__R"], 'TopicDetailData.__R') ?? {};
+    final topicInfoMap =
+        asJsonMapOrNull(map["__T"], 'TopicDetailData.__T') ?? {};
     Map<String, User> tempUserMap = {};
     Map<String, Group> tempGroupMap = {};
     Map<String, Medal> tempMedalMap = {};
@@ -127,7 +133,9 @@ class TopicDetailData {
       replyPageRows: _asInt(map["__R__ROWS_PAGE"]),
       rows: _asInt(map["__ROWS"]),
       truncated: truncated,
-      topic: Topic.fromJson(asJsonMap(map["__T"], 'TopicDetailData.__T')),
+      topic: topicInfoMap.isEmpty
+          ? null
+          : Topic.fromJson(topicInfoMap),
       hotReplies: hotReplies,
     );
   }

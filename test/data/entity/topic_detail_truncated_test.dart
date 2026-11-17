@@ -32,7 +32,26 @@ void main() {
     expect(data.rows, 0);
     expect(data.replyPageRows, 0);
     expect(data.replyList.length, 2, reason: '已写完整的楼层必须保留');
-    expect(data.topic.subject, '标题');
+    expect(data.topic?.subject, '标题');
+  });
+
+  test('repaired data without __T keeps floors and yields a null topic', () {
+    // 真实案例（2026-11-18）：NGA 的响应里 __T 排在 __R 之后，截断点落在
+    // 后半段时抢救出的数据只有楼层。之前 asJsonMap(null) 直接抛
+    // FormatException: JSON TopicDetailData.__T 期望 Map，整页报错。
+    final map = fullDetail()
+      ..remove('__ROWS')
+      ..remove('__R__ROWS_PAGE')
+      ..remove('__T')
+      ..remove('__U');
+    final data = TopicDetailData.fromJson(map, truncated: true);
+
+    expect(data.truncated, isTrue);
+    expect(data.topic, isNull, reason: '__T 缺失时主题信息为空，标题回落到路由参数');
+    expect(data.replyList.length, 2, reason: '楼层仍然全部保留');
+    expect(data.userList, isEmpty);
+    expect(data.hotReplies, isEmpty, reason: '没有 __T 就没有热评配置');
+    expect(data.maxPage, 1);
   });
 
   test('truncated or zero overview fields make maxPage fall back to 1', () {
