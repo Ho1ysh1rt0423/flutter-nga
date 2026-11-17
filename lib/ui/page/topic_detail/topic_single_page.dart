@@ -1,4 +1,5 @@
 import 'package:easy_refresh/easy_refresh.dart';
+import 'package:flutter/gestures.dart' show DeviceGestureSettings;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
@@ -73,30 +74,38 @@ class TopicSinglePage extends HookConsumerWidget {
       }
     }
 
-    return EasyRefresh(
-      controller: refreshController,
-      refreshOnStart: state.replyList.isEmpty,
-      onRefresh: onRefresh,
-child: Column(
-        children: [
-          if (state.truncated) _buildTruncatedBanner(context, onRefresh),
-          Expanded(
-            // 大屏下楼层列表收窄居中；截断横幅仍在全宽顶部
-            child: ReadableListPadding(
-              builder: (context, padding) => ListView.builder(
-                padding: padding,
-                itemCount: state.replyList.length,
-                itemBuilder: (context, position) => _buildListItem(
-                  context,
-                  position,
-                  state,
-                  blockFilter,
-                  replyWidgetCache.value,
+    // 详情页把整块 TabBarView 的触摸斜率提到了 kPageFlipTouchSlop（翻页
+    // 防误触）；列表的竖向滚动不该被波及，这里恢复默认斜率 —— 竞技场里
+    // 列表层次更深、斜率更小，斜滑优先滚动而不是翻页。
+    return MediaQuery(
+      data: MediaQuery.of(
+        context,
+      ).copyWith(gestureSettings: DeviceGestureSettings(touchSlop: null)),
+      child: EasyRefresh(
+        controller: refreshController,
+        refreshOnStart: state.replyList.isEmpty,
+        onRefresh: onRefresh,
+        child: Column(
+          children: [
+            if (state.truncated) _buildTruncatedBanner(context, onRefresh),
+            Expanded(
+              // 大屏下楼层列表收窄居中；截断横幅仍在全宽顶部
+              child: ReadableListPadding(
+                builder: (context, padding) => ListView.builder(
+                  padding: padding,
+                  itemCount: state.replyList.length,
+                  itemBuilder: (context, position) => _buildListItem(
+                    context,
+                    position,
+                    state,
+                    blockFilter,
+                    replyWidgetCache.value,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
