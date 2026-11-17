@@ -245,11 +245,13 @@ class TopicDataRepository implements TopicRepository {
   @override
   Future<List<String>> getTopicHeadImageUrls(int tid) async {
     // pid=0 只返回主楼，实测响应约 2.8KB（整页 8~15KB），专门给列表缩略图用。
-    // 允许「截断抢救」：只要主楼那一坨是完整的，后面楼层被砍掉不影响取首图。
+    // 允许「截断抢救」且重试上限为 0：抢救出的主楼已够用，重试只会让
+    // 串行队列每个截断的 tid 多白等 3.4 秒。
     final Response<Map<String, dynamic>> response = await _dio.get(
       "read.php?__output=8&tid=$tid&pid=0",
       options: Options(extra: {
         NgaDioConfigurator.allowTruncatedRepairKey: true,
+        NgaDioConfigurator.truncationMaxRetriesKey: 0,
       }),
     );
     final data = response.data;

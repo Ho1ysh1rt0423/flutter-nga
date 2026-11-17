@@ -159,6 +159,7 @@ class TopicDetailPage extends HookConsumerWidget {
       ),
       bottomNavigationBar: BottomAppBar(
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
               tooltip: '上一页',
