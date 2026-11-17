@@ -269,12 +269,13 @@ void main() {
     expect(find.text('1/3'), findsOneWidget);
 
     // 明确的横向拖动（几乎不带纵向分量）→ 翻到第 2 页。
-    // 用多步 move 模拟真实手指滑动（tester.drag 只有单步 move）。
+    // 多步 move 模拟真实手指滑动；总位移要超过页面宽度一半（800/2），
+    // 否则原生物理松手后会弹回原页（这正是「划一半可以撤回」的行为）。
     final gesture = await tester.startGesture(
       tester.getCenter(find.byType(TabBarView)),
     );
     for (var i = 0; i < 4; i++) {
-      await gesture.moveBy(const Offset(-50, -2));
+      await gesture.moveBy(const Offset(-160, -4));
       await tester.pump();
     }
     await gesture.up();

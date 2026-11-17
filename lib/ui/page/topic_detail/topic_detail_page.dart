@@ -1,4 +1,6 @@
 import 'package:adaptive_theme/adaptive_theme.dart';
+import 'package:community_material_icon/community_material_icon.dart';
+import 'package:flutter/gestures.dart' show DeviceGestureSettings;
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -6,12 +8,10 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_nga/providers/settings/theme_provider.dart';
 import 'package:flutter_nga/providers/topic/topic_detail_provider.dart';
-import 'package:flutter_nga/ui/page/topic_detail/guarded_page_flip.dart';
 import 'package:flutter_nga/ui/page/topic_detail/topic_page_select_dialog.dart';
 import 'package:flutter_nga/ui/page/topic_detail/topic_single_page.dart';
 import 'package:flutter_nga/utils/app_toast.dart';
 import 'package:flutter_nga/utils/code_utils.dart' as code_utils;
-import 'package:flutter_nga/utils/haptics.dart';
 import 'package:flutter_nga/utils/hooks/material_tab_controller_hook.dart';
 import 'package:flutter_nga/utils/nga_links.dart';
 import 'package:flutter_nga/utils/route.dart';
@@ -25,6 +25,10 @@ enum TopicDetailMenuAction {
 
   final String label;
 }
+
+/// 翻页起手的触摸斜率（逻辑像素）。默认 18px 太灵，斜着滑动容易误触；
+/// 页面内的列表在 TopicSinglePage 里恢复默认斜率，斜滑会被列表优先赢走。
+const double kPageFlipTouchSlop = 40;
 
 class TopicDetailPage extends HookConsumerWidget {
   const TopicDetailPage(
@@ -150,19 +154,20 @@ class TopicDetailPage extends HookConsumerWidget {
           ),
         ],
       ),
-      // 翻页手势：默认 PageScrollPhysics 只要横向位移过 18px 就接受手势，
-      // 斜着滑动（竖向滚动带一点横向漂移）会误触翻页。这里改成「横向幅度
-      // 明显占优才翻页」：TabBarView 关掉内建拖动（NeverScrollable 下
-      // Scrollable 不注册识别器），由 GuardedPageFlip 在外层判定后
-      // animateTo 翻页。正文里的横向可滚动内容（表格 / 代码块）层次更深，
-      // 竞技场里仍然先赢，不受影响。
-      body: GuardedPageFlip(
-        tabController: tabController,
-        child: TabBarView(
-          controller: tabController,
-          physics: NeverScrollableScrollPhysics(),
-          children: widgets,
+      // 翻页手势防误触：默认 PageScrollPhysics 的横向识别器只要位移过
+      // 18px 触摸斜率就接受手势，斜着滑动（竖向滚动带一点横向漂移）会
+      // 误触翻页。这里保留 TabBarView 原生拖动（跟手、松手可弹回），只把
+      // 起手斜率提高到 kPageFlipTouchSlop（40px）；页面内的列表通过
+      // TopicSinglePage 里的 MediaQuery 恢复默认 18px —— 手势竞技场里
+      // 列表的竖向识别器层次更深、斜率更小，斜滑会先被列表赢走，
+      // 只有横向占比明显大的滑动才轮到翻页。
+      body: MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          gestureSettings: DeviceGestureSettings(
+            touchSlop: kPageFlipTouchSlop,
+          ),
         ),
+        child: TabBarView(controller: tabController, children: widgets),
       ),
       bottomNavigationBar: BottomAppBar(
         child: Row(
@@ -177,32 +182,37 @@ class TopicDetailPage extends HookConsumerWidget {
             ),
             Tooltip(
               message: '跳转页码',
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(48, 48),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                onPressed: () {
-                  TopicPageSelectDialog.show(
-                    context,
-                    currentPage: state.currentPage,
-                    maxPage: state.maxPage,
-                    maxFloor: state.maxFloor,
-                    pageSelectedCallback: (isPage, target) {
-                      final index = isPage
-                          ? target - 1
-                          : (target / 20 - 1).ceil();
-                      goToPage(
-                        index.clamp(0, tabController.length - 1).toInt(),
-                      );
-                    },
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => TopicPageSelectDialog(
+                      currentPage: state.currentPage,
+                      maxPage: state.maxPage,
+                      maxFloor: state.maxFloor,
+                      pageSelectedCallback: (isPage, target) {
+                        final index = isPage
+                            ? target - 1
+                            : (target / 20 - 1).ceil();
+                        goToPage(
+                          index.clamp(0, tabController.length - 1).toInt(),
+                        );
+                      },
+                    ),
                   );
                 },
-                child: Text(
-                  "${state.currentPage}/${state.maxPage}",
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    "${state.currentPage}/${state.maxPage}",
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                 ),
               ),
@@ -219,7 +229,9 @@ class TopicDetailPage extends HookConsumerWidget {
             IconButton(
               tooltip: isDark ? '切换到日间模式' : '切换到夜间模式',
               icon: Icon(
-                isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                isDark
+                    ? CommunityMaterialIcons.weather_sunny
+                    : CommunityMaterialIcons.weather_night,
               ),
               onPressed: () => ref
                   .read(themeProvider.notifier)
@@ -231,18 +243,14 @@ class TopicDetailPage extends HookConsumerWidget {
             IconButton(
               tooltip: favourited ? '取消收藏' : '收藏',
               isSelected: favourited,
-              icon: const Icon(Icons.favorite_border),
-              selectedIcon: Icon(
-                Icons.favorite,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+              icon: Icon(CommunityMaterialIcons.heart_outline),
+              selectedIcon: Icon(CommunityMaterialIcons.heart),
               onPressed: state.favouriteBusy
                   ? null
                   : () {
                       notifier
                           .toggleFavourite()
                           .then((message) {
-                            AppHaptics.selectionChanged();
                             if (message != null) AppToast.success(message);
                           })
                           .catchError((e) {
@@ -250,10 +258,9 @@ class TopicDetailPage extends HookConsumerWidget {
                           });
                     },
             ),
-            const SizedBox(width: 4),
-            IconButton.filledTonal(
+            IconButton(
               tooltip: '回复',
-              icon: const Icon(Icons.chat_bubble_outline),
+              icon: Icon(CommunityMaterialIcons.comment_outline),
               onPressed: () {
                 if (fid == null && state.topic == null) return;
                 Routes.navigateTo(
