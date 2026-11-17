@@ -232,7 +232,7 @@ class TopicListItemWidget extends ConsumerWidget {
     );
   }
 
-  /// 服务端没给列表 `attachs` 时的兜底：异步取主楼首图。
+  /// 服务端没给列表 `attachs` 时的兜底：异步取主楼配图（最多 3 张）。
   ///
   /// 加载中、没图、请求失败都返回空 —— 列表不留占位，避免滚动时布局跳动。
   Widget _buildLazyThumbnail(
@@ -244,11 +244,11 @@ class TopicListItemWidget extends ConsumerWidget {
     if (tid == null) return const SizedBox.shrink();
     final async = ref.watch(topicHeadThumbnailProvider(tid));
     // 只在拿到数据时显示；loading / error 都当「没有图」，不留占位
-    final url = async is AsyncData<String?> ? async.value : null;
-    if (url == null) return const SizedBox.shrink();
+    final urls = async is AsyncData<List<String>> ? async.value : null;
+    if (urls == null || urls.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: _buildAttachmentPreview(context, [url]),
+      child: _buildAttachmentPreview(context, urls),
     );
   }
 

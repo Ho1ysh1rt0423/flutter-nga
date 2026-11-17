@@ -42,11 +42,16 @@ class TopicSinglePage extends HookConsumerWidget {
     );
     final state = ref.watch(topicSinglePageProvider(providerKey));
     final blockFilter = ref.watch(blockFilterProvider);
+    // 防重复刷新：EasyRefresh 自己的下拉有节流，但截断横幅的「重试」按钮
+    // 直接调 onRefresh，连点会并发多个请求互相覆盖状态
+    final refreshing = useRef(false);
 
     Future<void> onRefresh() async {
-      replyWidgetCache.value.clear();
-      final notifier = ref.read(topicSinglePageProvider(providerKey).notifier);
+      if (refreshing.value) return;
+      refreshing.value = true;
       try {
+        replyWidgetCache.value.clear();
+        final notifier = ref.read(topicSinglePageProvider(providerKey).notifier);
         final next = await notifier.refresh();
         if (!context.mounted) return;
 
@@ -63,6 +68,8 @@ class TopicSinglePage extends HookConsumerWidget {
 
         refreshController.finishRefresh(IndicatorResult.fail);
         AppToast.error(err);
+      } finally {
+        refreshing.value = false;
       }
     }
 
