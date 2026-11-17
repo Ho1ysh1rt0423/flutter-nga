@@ -7,33 +7,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 ///
 /// 背景：服务端只在部分版块给 `thread.php` 列表下发 `attachs`（小窗视界、
 /// 原神有；剑斗绮谭这类没有），所以对「标了带附件（type & 8192）但列表没给图」
-/// 的帖子，单独请求主楼取首图：`read.php?__output=8&tid=X&pid=0`，实测约 3KB。
+/// 的帖子，单独请求主楼取附件图：`read.php?__output=8&tid=X&pid=0`，实测约 3KB，
+/// 最多取 3 张（对齐 NGA 原版的列表配图）。
 ///
 /// 三个约束：
 /// - **串行**：一屏可能十几条带附件帖子，同时打出去太像爬虫，宁可慢一点；
 /// - **只问一次**：结果（包括失败）都记住，列表滚来滚去不会重复请求；
-/// - **尽量少发**：成功取到的首图 URL 会经 [persist] 落盘，重启后从
+/// - **尽量少发**：成功取到的图 URL 会经 [persist] 落盘，重启后从
 ///   [loadPersisted] 回灌内存，杀进程也不再重新拉。
 class TopicHeadThumbnailQueue {
-  TopicHeadThumbnailQueue(this._read, {this.loadPersisted, this.persist});
+  TopicHeadThumbnailQueue(
+    this._read, {
+    this.loadPersisted,
+    this.persist,
+  });
 
   final Future<List<String>> Function(int tid) _read;
 
-  /// 启动时从持久层读回的历史结果（tid → 首图 URL）
-  final Future<Map<int, String>> Function()? loadPersisted;
+  /// 启动时从持久层读回的历史结果（tid → 图 URL 列表）
+  final Future<Map<int, List<String>>> Function()? loadPersisted;
 
-  /// 成功取到首图后的落盘回调
-  final Future<void> Function(int tid, String url)? persist;
+  /// 成功取到图后的落盘回调
+  final Future<void> Function(int tid, List<String> urls)? persist;
 
-  /// tid → 首图 URL；值为 null 表示「主楼没图」或「请求失败」，两者都不再重试
-  final Map<int, String?> _cache = {};
+  /// tid → 图 URL 列表；空列表表示「主楼没图」或「请求失败」，都不再重试
+  final Map<int, List<String>> _cache = {};
 
   /// tid → 还在排队/进行中的请求。
   ///
   /// 列表滚动时同一个帖子会被反复 rebuild，而 `FutureProvider.family` 出屏后
   /// 可能被 dispose 再重建。只靠 [_cache] 去重不够（结果还没回来时缓存是空的），
   /// 实测会对同一个 tid 连发 5 次请求。这里用 pending 表把在途请求也合并掉。
-  final Map<int, Future<String?>> _pending = {};
+  final Map<int, Future<List<String>>> _pending = {};
 
   /// 串行队列的尾巴
   Future<void> _tail = Future<void>.value();
@@ -41,34 +46,34 @@ class TopicHeadThumbnailQueue {
   /// 启动时从持久层回灌缓存（只记一次，失败当作没有持久数据）
   Future<void>? _preloadFuture;
 
-  Future<String?> fetch(int tid) {
-    if (_cache.containsKey(tid)) return Future.value(_cache[tid]);
+  Future<List<String>> fetch(int tid) {
+    final cached = _cache[tid];
+    if (cached != null) return Future.value(cached);
     final pending = _pending[tid];
     if (pending != null) return pending;
 
-    final completer = Completer<String?>();
+    final completer = Completer<List<String>>();
     _pending[tid] = completer.future;
     _tail = _tail.then((_) async {
-      String? url;
+      var urls = const <String>[];
       try {
         // 持久层回灌可能在入队之后才完成：执行前再看一眼缓存，
         // 命中就省掉这次 HTTP。
         await _ensureLoaded();
-        final cached = _cache[tid];
-        if (cached != null) {
-          if (!completer.isCompleted) completer.complete(cached);
+        final cachedUrls = _cache[tid];
+        if (cachedUrls != null && cachedUrls.isNotEmpty) {
+          if (!completer.isCompleted) completer.complete(cachedUrls);
           return;
         }
-        final urls = await _read(tid);
-        url = urls.isEmpty ? null : urls.first;
+        urls = await _read(tid);
       } catch (_) {
         // 缩略图是锦上添花：失败就静默不显示，绝不把错误抛到列表里
-        url = null;
+        urls = const <String>[];
       }
-      _cache[tid] = url;
+      _cache[tid] = urls;
       _pending.remove(tid);
-      if (url != null) persist?.call(tid, url).catchError((_) {});
-      if (!completer.isCompleted) completer.complete(url);
+      if (urls.isNotEmpty) persist?.call(tid, urls).catchError((_) {});
+      if (!completer.isCompleted) completer.complete(urls);
     });
     return completer.future;
   }
@@ -79,6 +84,7 @@ class TopicHeadThumbnailQueue {
     return _preloadFuture ??= existing()
         .then<void>((map) {
           for (final entry in map.entries) {
+            // 已有内存结果（包括「没图」的负结果）不覆盖
             if (!_cache.containsKey(entry.key)) {
               _cache[entry.key] = entry.value;
             }
@@ -109,7 +115,8 @@ final topicHeadThumbnailQueueProvider = Provider<TopicHeadThumbnailQueue>((ref) 
   );
 });
 
-/// 列表项首图。返回 null 表示这条帖子主楼没有附图，界面不显示缩略图区。
-final topicHeadThumbnailProvider = FutureProvider.family<String?, int>(
+/// 列表项配图（最多 3 张，横向排开）。返回空列表表示这条帖子主楼没有附图，
+/// 界面不显示缩略图区。
+final topicHeadThumbnailProvider = FutureProvider.family<List<String>, int>(
   (ref, tid) => ref.watch(topicHeadThumbnailQueueProvider).fetch(tid),
 );
