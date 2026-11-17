@@ -303,7 +303,7 @@ class ForumInfo {
       });
     }
     dynamic toppedTopic = map['topped_topic'];
-    if (toppedTopic is! int && toppedTopic != "") {
+    if (toppedTopic != null && toppedTopic is! int && toppedTopic != "") {
       toppedTopic = int.tryParse(toppedTopic);
     } else {
       toppedTopic = null;
