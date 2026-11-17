@@ -23,6 +23,11 @@ class NgaDioConfigurator {
   /// 记录「因响应被截断而重试」的次数，写在 [RequestOptions.extra] 里。
   static const String truncationRetryKey = 'nga_truncation_retry';
 
+  /// 响应经 [repairTruncatedJson] 抢救后置为 true（写在 [RequestOptions.extra]
+  /// 里）。仓库层据此把「数据不完整」往上层传，界面必须明确提示，不能把
+  /// 抢救出来的部分当成完整内容展示。
+  static const String truncatedRepairedKey = 'nga_truncated_repaired';
+
   /// 在 [RequestOptions.extra] 中置为 true 时，允许对截断的响应做「补闭合」抢救：
   /// 只保留已经写完整的部分，缺的尾巴丢掉。
   ///
@@ -124,6 +129,7 @@ class NgaDioConfigurator {
           if (repairedPayload is Map<String, dynamic>) {
             debugPrint(
                 '[json] 响应被截断，已抢救出完整部分: ${response.requestOptions.uri}');
+            response.requestOptions.extra[truncatedRepairedKey] = true;
             response.data = repairedPayload;
             handler.next(response);
             return;

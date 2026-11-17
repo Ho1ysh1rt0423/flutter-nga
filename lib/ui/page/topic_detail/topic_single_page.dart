@@ -70,16 +70,61 @@ class TopicSinglePage extends HookConsumerWidget {
       controller: refreshController,
       refreshOnStart: state.replyList.isEmpty,
       onRefresh: onRefresh,
-      child: ReadableListPadding(
-        builder: (context, padding) => ListView.builder(
-          padding: padding,
-          itemCount: state.replyList.length,
-          itemBuilder: (context, position) => _buildListItem(
-            context,
-            position,
-            state,
-            blockFilter,
-            replyWidgetCache.value,
+child: Column(
+        children: [
+          if (state.truncated) _buildTruncatedBanner(context, onRefresh),
+          Expanded(
+            // 大屏下楼层列表收窄居中；截断横幅仍在全宽顶部
+            child: ReadableListPadding(
+              builder: (context, padding) => ListView.builder(
+                padding: padding,
+                itemCount: state.replyList.length,
+                itemBuilder: (context, position) => _buildListItem(
+                  context,
+                  position,
+                  state,
+                  blockFilter,
+                  replyWidgetCache.value,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 截断抢救的数据不是完整内容：顶部明确提示，避免用户以为帖子就这几楼。
+  Widget _buildTruncatedBanner(
+    BuildContext context,
+    Future<void> Function() onRefresh,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: colorScheme.errorContainer.withValues(alpha: 0.35),
+      child: SafeArea(
+        top: false,
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 18, color: colorScheme.error),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '服务端返回的数据不完整，当前仅显示已加载的楼层；稍后下拉刷新可恢复',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: onRefresh,
+                child: const Text('重试'),
+              ),
+            ],
           ),
         ),
       ),

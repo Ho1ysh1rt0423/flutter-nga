@@ -18,11 +18,17 @@ class TopicDetailData {
   final int currentRows;
   final int replyPageRows;
 
+  /// 响应被服务端截断、经「补闭合」抢救出来的部分数据。此时 [rows] /
+  /// [replyPageRows] 等总览字段不可信（截断点常在它们之前），[maxPage]
+  /// 会回退为 1，界面必须提示「内容不完整」。
+  final bool truncated;
+
   final Topic topic;
   final List<int> hotReplies;
 
   const TopicDetailData({
     this.global,
+    this.truncated = false,
     required this.userList,
     required this.replyList,
     required this.groupList,
@@ -35,7 +41,10 @@ class TopicDetailData {
     required this.hotReplies,
   });
 
-  factory TopicDetailData.fromJson(Map<String, dynamic> map) {
+  factory TopicDetailData.fromJson(
+    Map<String, dynamic> map, {
+    bool truncated = false,
+  }) {
     final userMap = asJsonMap(map["__U"], 'TopicDetailData.__U');
     final replyMap = asJsonMap(map["__R"], 'TopicDetailData.__R');
     final topicInfoMap = asJsonMap(map["__T"], 'TopicDetailData.__T');
@@ -114,15 +123,26 @@ class TopicDetailData {
       groupList: tempGroupMap,
       medalList: tempMedalMap,
       reputationList: tempReputationMap,
-      currentRows: map["__R__ROWS"],
-      replyPageRows: map["__R__ROWS_PAGE"],
-      rows: map["__ROWS"],
+      currentRows: _asInt(map["__R__ROWS"]),
+      replyPageRows: _asInt(map["__R__ROWS_PAGE"]),
+      rows: _asInt(map["__ROWS"]),
+      truncated: truncated,
       topic: Topic.fromJson(asJsonMap(map["__T"], 'TopicDetailData.__T')),
       hotReplies: hotReplies,
     );
   }
 
-  int get maxPage => (rows / replyPageRows.toDouble()).ceil();
+  /// 服务端字段类型不稳定（截断抢救后的数据常缺总览字段），统一兜成 0，
+  /// 避免 null / 非法值直接把 `int` 字段赋值炸掉。
+  static int _asInt(dynamic value) =>
+      value is int ? value : int.tryParse('$value') ?? 0;
+
+  int get maxPage {
+    // 截断抢救的数据缺 `__ROWS` / `__R__ROWS_PAGE`（截断点常落在它们之前），
+    // 算出来的页数不可信；总览字段缺失（0）时同样无页可算，都回退为当前页。
+    if (truncated || replyPageRows <= 0 || rows <= 0) return 1;
+    return (rows / replyPageRows.toDouble()).ceil();
+  }
 }
 
 class Reply {

@@ -11,6 +11,11 @@ class TopicSinglePageState {
   final int maxPage;
   final int maxFloor;
   final bool enablePullUp;
+
+  /// 本页数据来自「截断抢救」（服务端把响应在中途砍断，客户端保留了已写
+  /// 完整的楼层）。此时页数/总楼数不可信（已回退为当前页），界面必须
+  /// 明确提示内容不完整，用户刷新可尝试拿全量。
+  final bool truncated;
   final Topic? topic;
   final List<Reply> replyList;
   final List<Reply> hotReplyList;
@@ -23,6 +28,7 @@ class TopicSinglePageState {
     this.maxPage = 1,
     this.maxFloor = 1,
     this.enablePullUp = false,
+    this.truncated = false,
     this.topic,
     this.replyList = const [],
     this.hotReplyList = const [],
@@ -49,6 +55,7 @@ class TopicSinglePageState {
     int? maxPage,
     int? maxFloor,
     bool? enablePullUp,
+    bool? truncated,
     Topic? topic,
     List<Reply>? replyList,
     List<Reply>? hotReplyList,
@@ -61,6 +68,7 @@ class TopicSinglePageState {
       maxPage: maxPage ?? this.maxPage,
       maxFloor: maxFloor ?? this.maxFloor,
       enablePullUp: enablePullUp ?? this.enablePullUp,
+      truncated: truncated ?? this.truncated,
       topic: topic ?? this.topic,
       replyList: replyList ?? this.replyList,
       hotReplyList: hotReplyList ?? this.hotReplyList,
@@ -141,9 +149,22 @@ class TopicSinglePageNotifier extends Notifier<TopicSinglePageState> {
 
       state = TopicSinglePageState(
         page: 1,
-        maxPage: data.maxPage,
-        maxFloor: data.rows,
+        // 截断抢救的数据页数/总楼数不可信（entity 的 maxPage 已回退为 1）。
+        // 当前页至少是存在的（正在看的就是它），保底到当前页，避免
+        // TabBarView 因页数缩水把用户正在看的页挤掉；总楼数用已解析出的
+        // 最大楼层号顶上，界面上不至于显示 0。
+        maxPage: data.truncated && key.page > data.maxPage
+            ? key.page
+            : data.maxPage,
+        maxFloor: data.truncated
+            ? replyList.fold<int>(
+                0,
+                (max, reply) =>
+                    (reply.lou ?? 0) > max ? (reply.lou ?? 0) : max,
+              )
+            : data.rows,
         enablePullUp: 1 < data.maxPage,
+        truncated: data.truncated,
         topic: data.topic,
         replyList: replyList,
         hotReplyList: hotReplyList,
