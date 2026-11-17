@@ -104,4 +104,72 @@ void main() {
 
     expect(calls, 2);
   });
+
+  test('persisted urls are reused without an HTTP request', () async {
+    var calls = 0;
+    final queue = TopicHeadThumbnailQueue(
+      (tid) async {
+        calls++;
+        return ['https://img.nga.cn/$tid.jpg'];
+      },
+      loadPersisted: () async => {7: 'https://img.nga.cn/persisted.jpg'},
+    );
+
+    expect(await queue.fetch(7), 'https://img.nga.cn/persisted.jpg');
+    expect(calls, 0, reason: '重启后不再为已有结果的帖子发请求');
+  });
+
+  test('successful results are written back to the persistent layer',
+      () async {
+    final persisted = <int, String>{};
+    var calls = 0;
+    final queue = TopicHeadThumbnailQueue(
+      (tid) async {
+        calls++;
+        return ['https://img.nga.cn/$tid.jpg'];
+      },
+      loadPersisted: () async => persisted,
+      persist: (tid, url) async => persisted[tid] = url,
+    );
+
+    expect(await queue.fetch(7), 'https://img.nga.cn/7.jpg');
+    expect(persisted[7], 'https://img.nga.cn/7.jpg');
+    expect(calls, 1);
+
+    // 模拟重启：同一队列配置、持久层里有数据
+    final restarted = TopicHeadThumbnailQueue(
+      (tid) async {
+        calls++;
+        return ['https://img.nga.cn/$tid.jpg'];
+      },
+      loadPersisted: () async => persisted,
+      persist: (tid, url) async => persisted[tid] = url,
+    );
+    expect(await restarted.fetch(7), 'https://img.nga.cn/7.jpg');
+    expect(calls, 1, reason: '重启后命中持久缓存，不再请求');
+  });
+
+  test('negative results are not persisted', () async {
+    final persisted = <int, String>{};
+    final queue = TopicHeadThumbnailQueue(
+      (tid) async => const [],
+      loadPersisted: () async => persisted,
+      persist: (tid, url) async => persisted[tid] = url,
+    );
+
+    await queue.fetch(7);
+    expect(persisted, isEmpty,
+        reason: '「主楼没图」可能是后续编辑加了图，重启后再确认一次');
+  });
+
+  test('a broken persistent layer does not break fetching', () async {
+    final queue = TopicHeadThumbnailQueue(
+      (tid) async => ['https://img.nga.cn/$tid.jpg'],
+      loadPersisted: () async => throw Exception('db broken'),
+      persist: (tid, url) async => throw Exception('db broken'),
+    );
+
+    expect(await queue.fetch(7), 'https://img.nga.cn/7.jpg');
+    expect(await queue.fetch(7), 'https://img.nga.cn/7.jpg');
+  });
 }
