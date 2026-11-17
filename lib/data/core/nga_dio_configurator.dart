@@ -31,9 +31,17 @@ class NgaDioConfigurator {
   /// 在 [RequestOptions.extra] 中置为 true 时，允许对截断的响应做「补闭合」抢救：
   /// 只保留已经写完整的部分，缺的尾巴丢掉。
   ///
-  /// 只给**能容忍缺数据**的请求用（列表缩略图只读主楼的 attachs，缺后面几楼
-  /// 无所谓）。详情页不要开，否则用户会以为帖子只有这几楼。
+  /// 给**能容忍缺数据**的请求用：列表缩略图只读主楼的 attachs，缺后面几楼
+  /// 无所谓；详情页（getTopicDetail / getTopicReplies）也开了，但上层会拿
+  /// truncatedRepairedKey 标记在界面明确提示「内容不完整」并禁用向后翻页，
+  /// 不会把部分楼层当成完整内容误导用户。
   static const String allowTruncatedRepairKey = 'nga_allow_truncated_repair';
+
+  /// 每请求覆盖截断重试上限（int）。省略时用 [maxTruncationRetries]。
+  ///
+  /// 可抢救的请求可以设 0：抢救出的主楼数据已够缩略图用，重试只会让
+  /// 串行队列多等 0.9s + 2.5s（详情页保持默认，重试有机会拿全量数据）。
+  static const String truncationMaxRetriesKey = 'nga_truncation_max_retries';
 
   /// 截断响应最多重试几次。
   ///
@@ -236,7 +244,9 @@ class NgaDioConfigurator {
     if (options.data is Stream) return false;
 
     final attempt = (options.extra[truncationRetryKey] as int?) ?? 0;
-    if (attempt >= maxTruncationRetries) return false;
+    final maxRetries =
+        (options.extra[truncationMaxRetriesKey] as int?) ?? maxTruncationRetries;
+    if (attempt >= maxRetries) return false;
 
     // 重试前等一等。实测（2026-11-17）这类截断**不是** CDN 边缘缓存问题：
     // 同一 tid 连发 8 种请求（原样 3 次 / 加随机参数破缓存 / 换 ngabbs.com 和
@@ -250,7 +260,7 @@ class NgaDioConfigurator {
       ..[truncationRetryKey] = attempt + 1;
     final next = options.copyWith(extra: nextExtra);
     debugPrint(
-        '[json] 响应被截断，重试 ${attempt + 1}/$maxTruncationRetries: ${options.uri}');
+        '[json] 响应被截断，重试 ${attempt + 1}/$maxRetries: ${options.uri}');
 
     try {
       final retried = await dio.fetch<dynamic>(next);

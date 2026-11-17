@@ -135,4 +135,34 @@ void main() {
       reason: '界面要靠这个标记提示「内容不完整」',
     );
   });
+
+  test('truncationMaxRetriesKey 0 skips retries and repairs at once',
+      () async {
+    // 缩略图请求的配置：可抢救 + 不重试。串行队列里每个截断的 tid 若先走
+    // 0.9s + 2.5s 重试再抢救，会把后面的缩略图全部卡住。
+    final adapter = _TruncatingAdapter(
+      '{"data":{"__R":{"0":{"pid":0,"content":"主楼"},"1":{"pid":2,"authorid":67',
+      '{"data":{"__R":{"0":{"pid":0,"content":"主楼"},"1":{"pid":2,"authorid":67',
+    );
+    final dio = Dio()..options.baseUrl = 'https://bbs.nga.cn/';
+    dio.httpClientAdapter = adapter;
+    NgaDioConfigurator(() async => null).configure(dio);
+
+    final response = await dio.get<Map<String, dynamic>>(
+      'read.php?__output=8&tid=1&pid=0',
+      options: Options(
+        extra: {
+          NgaDioConfigurator.allowTruncatedRepairKey: true,
+          NgaDioConfigurator.truncationMaxRetriesKey: 0,
+        },
+      ),
+    );
+
+    expect(adapter.requests.length, 1, reason: '重试上限 0 时应立即抢救，不发重试请求');
+    expect((response.data!['__R'] as Map).keys, ['0']);
+    expect(
+      response.requestOptions.extra[NgaDioConfigurator.truncatedRepairedKey],
+      isTrue,
+    );
+  });
 }
