@@ -30,12 +30,12 @@ abstract class TopicRepository {
   /// 用 `pid=0` 只拿一楼，响应约 3KB。
   Future<List<String>> getTopicHeadImageUrls(int tid);
 
-  /// 已取到的列表首图（tid → URL），进程重启后回灌，避免重新请求。
+  /// 已取到的列表配图（tid → URL 列表），进程重启后回灌，避免重新请求。
   /// 只存成功结果；取不到图 / 请求失败留在内存缓存里即可。
-  Future<Map<int, String>> loadHeadThumbnailCache();
+  Future<Map<int, List<String>>> loadHeadThumbnailCache();
 
-  /// 落盘一条首图结果（upsert，失败静默——缓存是锦上添花）。
-  Future<void> saveHeadThumbnail(int tid, String url);
+  /// 落盘一条配图结果（upsert，失败静默——缓存是锦上添花）。
+  Future<void> saveHeadThumbnail(int tid, List<String> urls);
 
   Future<TopicDetailData> getTopicReplies(int? pid);
 
@@ -272,14 +272,22 @@ class TopicDataRepository implements TopicRepository {
   }
 
   @override
-  Future<Map<int, String>> loadHeadThumbnailCache() async {
+  Future<Map<int, List<String>>> loadHeadThumbnailCache() async {
     try {
       final records = await _headThumbnailStore.find(database);
-      final result = <int, String>{};
+      final result = <int, List<String>>{};
       for (final record in records) {
         final value = record.value;
-        if (value is String && value.isNotEmpty) {
-          result[record.key] = value;
+        if (value is List) {
+          // 当前格式：URL 列表
+          final urls = value
+              .whereType<String>()
+              .where((url) => url.isNotEmpty)
+              .toList();
+          if (urls.isNotEmpty) result[record.key] = urls;
+        } else if (value is String && value.isNotEmpty) {
+          // 旧格式：单条 URL 字符串
+          result[record.key] = [value];
         }
       }
       return result;
@@ -290,9 +298,9 @@ class TopicDataRepository implements TopicRepository {
   }
 
   @override
-  Future<void> saveHeadThumbnail(int tid, String url) async {
+  Future<void> saveHeadThumbnail(int tid, List<String> urls) async {
     try {
-      await _headThumbnailStore.record(tid).put(database, url);
+      await _headThumbnailStore.record(tid).put(database, urls);
     } catch (_) {
       // 缓存写失败不影响功能
     }
