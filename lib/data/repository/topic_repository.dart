@@ -30,6 +30,13 @@ abstract class TopicRepository {
   /// 用 `pid=0` 只拿一楼，响应约 3KB。
   Future<List<String>> getTopicHeadImageUrls(int tid);
 
+  /// 已取到的列表首图（tid → URL），进程重启后回灌，避免重新请求。
+  /// 只存成功结果；取不到图 / 请求失败留在内存缓存里即可。
+  Future<Map<int, String>> loadHeadThumbnailCache();
+
+  /// 落盘一条首图结果（upsert，失败静默——缓存是锦上添花）。
+  Future<void> saveHeadThumbnail(int tid, String url);
+
   Future<TopicDetailData> getTopicReplies(int? pid);
 
   Future<TopicListData> getFavouriteTopicList(int page);
@@ -107,6 +114,15 @@ class TopicDataRepository implements TopicRepository {
   }
 
   StoreRef<int, dynamic>? _lateInitStore;
+
+  StoreRef<int, dynamic> get _headThumbnailStore {
+    _lateHeadThumbnailStore ??= intMapStoreFactory.store(
+      'topic_head_thumbnails',
+    );
+    return _lateHeadThumbnailStore!;
+  }
+
+  StoreRef<int, dynamic>? _lateHeadThumbnailStore;
 
   @override
   Future<TopicListData> getTopicList({
@@ -251,6 +267,33 @@ class TopicDataRepository implements TopicRepository {
       if (urls.isNotEmpty) return urls;
     }
     return const [];
+  }
+
+  @override
+  Future<Map<int, String>> loadHeadThumbnailCache() async {
+    try {
+      final records = await _headThumbnailStore.find(database);
+      final result = <int, String>{};
+      for (final record in records) {
+        final value = record.value;
+        if (value is String && value.isNotEmpty) {
+          result[record.key] = value;
+        }
+      }
+      return result;
+    } catch (err) {
+      // 持久层坏了当作没有缓存，列表缩略图回退到正常请求
+      return const {};
+    }
+  }
+
+  @override
+  Future<void> saveHeadThumbnail(int tid, String url) async {
+    try {
+      await _headThumbnailStore.record(tid).put(database, url);
+    } catch (_) {
+      // 缓存写失败不影响功能
+    }
   }
 
   @override

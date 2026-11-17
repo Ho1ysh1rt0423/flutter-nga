@@ -18,6 +18,7 @@ import 'package:flutter_nga/ui/widget/username_text.dart';
 import 'package:flutter_nga/utils/app_toast.dart';
 import 'package:flutter_nga/utils/code_utils.dart' as code_utils;
 import 'package:flutter_nga/utils/dimen.dart';
+import 'package:flutter_nga/utils/picture_utils.dart';
 import 'package:flutter_nga/utils/name_utils.dart' as name_utils;
 import 'package:flutter_nga/utils/haptics.dart';
 import 'package:flutter_nga/utils/nga_links.dart';
@@ -656,8 +657,9 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
+                  // 网格显示走 .thumb.jpg 缩略图省流量，点击预览原图
                   CachedNetworkImage(
-                    imageUrl: attachment.realUrl,
+                    imageUrl: getThumbUrl(attachment.realUrl),
                     fit: BoxFit.cover,
                     placeholder: (context, url) =>
                         const AttachmentPlaceholder(),
