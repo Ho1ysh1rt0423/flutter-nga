@@ -232,4 +232,71 @@ void main() {
     );
     expect(find.byTooltip('切换到日间模式'), findsOneWidget);
   });
+
+  testWidgets('body keeps a functional page-flip physics', (tester) async {
+    // 回归用例：曾把 TabBarView 的 physics 换成 NeverScrollableScrollPhysics
+    // 并改由边缘手势接管，结果整屏横滑直接翻不动。这里守住「整屏可滑」。
+    final harness = _TopicRequestHarness();
+    final container = ProviderContainer(
+      overrides: [
+        topicSinglePageProvider.overrideWith2(harness.createNotifier),
+      ],
+    );
+    addTearDown(container.dispose);
+    const requestKey = TopicSinglePageKey(tid: 2, page: 1);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: TopicDetailPage(2, 10),
+        ),
+      ),
+    );
+    await harness.waitForRefreshStart(tester, requestKey);
+
+    harness.requests[requestKey]!.complete(
+      const TopicSinglePageState(
+        maxPage: 3,
+        maxFloor: 60,
+        topic: Topic(tid: 2, subject: '多页帖子'),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.text('1/3'), findsOneWidget);
+
+    // 翻页交给 TabBarView 自带的 PageScrollPhysics：整屏横滑就该翻。
+    // 曾经换成 NeverScrollableScrollPhysics（改由边缘手势接管），真机上
+    // 直接滑不动了，这里守住这个回归点。
+    final scrollables = tester.widgetList<Scrollable>(
+      find.descendant(
+        of: find.byType(TabBarView),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(scrollables, isNotEmpty);
+    expect(
+      scrollables.first.physics,
+      isNot(isA<NeverScrollableScrollPhysics>()),
+      reason: 'TabBarView 必须保留可滚动 physics，否则整屏横滑无法翻页',
+    );
+
+    // 收尾：把还挂着的请求完成，避免 teardown 时残留定时器
+    for (final entry in harness.requests.entries) {
+      if (!entry.value.isCompleted) {
+        entry.value.complete(
+          const TopicSinglePageState(
+            maxPage: 3,
+            maxFloor: 60,
+            topic: Topic(tid: 2, subject: '多页帖子'),
+          ),
+        );
+      }
+    }
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }

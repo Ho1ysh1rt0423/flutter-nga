@@ -71,6 +71,7 @@ class Topic {
     this.topicMisc,
     this.page,
     this.parent,
+    this.attachmentUrls = const [],
   });
 
   final int? tid;
@@ -91,6 +92,14 @@ class Topic {
   final int? replies;
   final String? topicMisc;
   final int? page; // 用于记录是收藏的第几页
+
+  /// 列表接口随帖子返回的附件图（NGA 在部分版块会带 `attachs` 字段，
+  /// 每项形如 `{"0": {"attachurl": "mon_202611/17/xxx.jpg"}}`）。
+  /// 已规范化成完整的 https 地址，最多保留 [maxListAttachmentCount] 张。
+  final List<String> attachmentUrls;
+
+  /// 列表最多展示的配图数量，对齐 NGA 原版
+  static const int maxListAttachmentCount = 3;
 
   final TopicParent? parent;
 
@@ -117,8 +126,47 @@ class Topic {
       topicMisc: map["topic_misc"],
       page: map["page"],
       parent: TopicParent.parse(map["parent"]),
+      attachmentUrls: parseListAttachmentUrls(map["attachs"]),
     );
   }
+
+  /// 解析列表接口的 `attachs`：只取图片类附件，规范化成完整地址。
+  ///
+  /// 服务端并非所有版块都下发该字段，缺失或结构异常时返回空列表。
+  static List<String> parseListAttachmentUrls(dynamic value) {
+    if (value is! Map) return const [];
+    final urls = <String>[];
+    for (final entry in value.entries) {
+      final item = entry.value;
+      if (item is! Map) continue;
+      final type = item["type"]?.toString();
+      if (type != null && type.isNotEmpty && type != "img") continue;
+      final url = normalizeListAttachmentUrl(item["attachurl"]?.toString());
+      if (url == null) continue;
+      urls.add(url);
+      if (urls.length >= maxListAttachmentCount) break;
+    }
+    return urls;
+  }
+
+  /// 附件相对路径 → 完整 URL。与正文解析（content_parser）保持同一套规则。
+  static String? normalizeListAttachmentUrl(String? raw) {
+    final value = raw?.trim() ?? '';
+    if (value.isEmpty) return null;
+    if (value.startsWith('http://')) {
+      return value.replaceFirst('http://', 'https://');
+    }
+    if (value.startsWith('https://')) return value;
+    if (value.startsWith('./mon_')) {
+      return '$_attachmentBase${value.substring(1)}';
+    }
+    if (value.startsWith('mon_')) return '$_attachmentBase/$value';
+    if (value.startsWith('/attachments/')) return 'https://img.nga.cn$value';
+    if (value.startsWith('/')) return value;
+    return '$_attachmentBase/$value';
+  }
+
+  static const String _attachmentBase = 'https://img.nga.cn/attachments';
 
   bool hasAttachment() {
     return type! & TOPIC_MASK_TYPE_ATTACHMENT == TOPIC_MASK_TYPE_ATTACHMENT;
@@ -255,7 +303,7 @@ class ForumInfo {
       });
     }
     dynamic toppedTopic = map['topped_topic'];
-    if (toppedTopic != null && toppedTopic is! int && toppedTopic != "") {
+    if (toppedTopic is! int && toppedTopic != "") {
       toppedTopic = int.tryParse(toppedTopic);
     } else {
       toppedTopic = null;
