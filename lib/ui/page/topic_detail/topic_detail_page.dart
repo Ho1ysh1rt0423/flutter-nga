@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_nga/providers/settings/theme_provider.dart';
 import 'package:flutter_nga/providers/topic/topic_detail_provider.dart';
+import 'package:flutter_nga/ui/page/topic_detail/guarded_page_flip.dart';
 import 'package:flutter_nga/ui/page/topic_detail/topic_page_select_dialog.dart';
 import 'package:flutter_nga/ui/page/topic_detail/topic_single_page.dart';
 import 'package:flutter_nga/utils/app_toast.dart';
@@ -149,13 +150,19 @@ class TopicDetailPage extends HookConsumerWidget {
           ),
         ],
       ),
-      // 翻页用 TabBarView 自带的整屏横滑（PageScrollPhysics）。
-      // 曾经改成「仅左右边缘 72px 起手才翻页」，真机实测直接滑不动了，
-      // 已回退：整屏横滑是 NGA 原版和用户都熟悉的行为。正文里若出现横向
-      // 可滚动内容，Flutter 的手势竞技场会让内层 Scrollable 先赢，不会误翻页。
-      body: TabBarView(
-        controller: tabController,
-        children: widgets,
+      // 翻页手势：默认 PageScrollPhysics 只要横向位移过 18px 就接受手势，
+      // 斜着滑动（竖向滚动带一点横向漂移）会误触翻页。这里改成「横向幅度
+      // 明显占优才翻页」：TabBarView 关掉内建拖动（NeverScrollable 下
+      // Scrollable 不注册识别器），由 GuardedPageFlip 在外层判定后
+      // animateTo 翻页。正文里的横向可滚动内容（表格 / 代码块）层次更深，
+      // 竞技场里仍然先赢，不受影响。
+      body: GuardedPageFlip(
+        tabController: tabController,
+        child: TabBarView(
+          controller: tabController,
+          physics: NeverScrollableScrollPhysics(),
+          children: widgets,
+        ),
       ),
       bottomNavigationBar: BottomAppBar(
         child: Row(

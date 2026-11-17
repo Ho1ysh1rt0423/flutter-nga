@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_nga/data/data.dart';
 import 'package:flutter_nga/data/entity/emoticon.dart';
 import 'package:flutter_nga/ui/widget/font_style_widget.dart';
+import 'package:flutter_nga/ui/widget/nga_emoticon_image.dart';
 
 class EmoticonGroupTabsWidget extends StatefulWidget {
   const EmoticonGroupTabsWidget({this.callback, super.key});
@@ -67,13 +67,9 @@ class _EmoticonGroupWidget extends StatelessWidget {
                 onTap: () => callback?.call(expression.content, "", false),
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: CachedNetworkImage(
-                    imageUrl: expression.url,
-                    placeholder: (context, url) =>
-                        Image.asset('images/default_forum_icon.png'),
-                    errorWidget: (context, url, err) =>
-                        Image.asset('images/default_forum_icon.png'),
-                  ),
+                  // 面板表情固定边长；NgaEmoticonImage 同时负责深色主题下
+                  // 黑色线稿表情的反相，与正文里的表情表现一致
+                  child: NgaEmoticonImage(url: expression.url, size: 34),
                 ),
               ),
             ),

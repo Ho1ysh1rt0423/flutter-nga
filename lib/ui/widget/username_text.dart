@@ -37,10 +37,10 @@ class UsernameText extends StatelessWidget {
       highlightLastFour: username.startsWith('UID:'),
     );
     final textStyle = DefaultTextStyle.of(context).style.merge(style);
-    final colors = _UsernameColors.fromSeed(
-      _colorSeed,
-      Theme.of(context).brightness,
-    );
+    // 颜色只在 UID: 尾 4 字高亮时才需要，普通用户名不再算色板
+    final colors = nameParts.highlighted.isEmpty
+        ? null
+        : _UsernameColors.fromSeed(_colorSeed, Theme.of(context).brightness);
     final onTap = _canNavigate ? () => _navigateToUser(context) : null;
 
     final text = Text.rich(
@@ -55,7 +55,7 @@ class UsernameText extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
-                  color: colors.background,
+                  color: colors!.background,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -135,10 +135,12 @@ class _UsernameParts {
   }) {
     final characters = displayName.characters;
     if (!highlightLastFour) {
+      // 用户名整体平铺展示，不做首字彩色块（曾经把第一个字单独上色，太花）。
+      // 只保留 UID: 尾 4 字的识别高亮。
       return _UsernameParts(
-        leading: '',
-        highlighted: characters.take(1).toString(),
-        trailing: characters.skip(1).toString(),
+        leading: displayName,
+        highlighted: '',
+        trailing: '',
       );
     }
 

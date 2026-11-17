@@ -1,9 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/rendering.dart' show RenderProxyBox;
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_nga/providers/settings/interface_settings_provider.dart';
 import 'package:flutter_nga/ui/widget/collapse_widget.dart';
+import 'package:flutter_nga/ui/widget/nga_emoticon_image.dart';
 import 'package:flutter_nga/ui/widget/photo_preview_launcher.dart';
 import 'package:flutter_nga/ui/widget/username_text.dart';
 import 'package:flutter_nga/utils/parser/content_parser.dart';
@@ -27,6 +28,7 @@ class NgaHtml extends StatelessWidget {
     this.textStyle,
     this.decorateBlocks = true,
     this.enableImageTap = false,
+    this.emoticonSize = InterfaceSettingsState.defaultEmoticonSize,
   });
 
   final String html;
@@ -40,6 +42,9 @@ class NgaHtml extends StatelessWidget {
   /// 为 true 时（帖子正文），点击 `<img>` 打开图片预览页；评论等小图场景
   /// 保持 false，避免误触。
   final bool enableImageTap;
+
+  /// 表情显示边长，来自界面设置的「表情大小」。
+  final double emoticonSize;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +61,8 @@ class NgaHtml extends StatelessWidget {
       // 长楼层（>1 万字符）默认会异步构建，列表里会先占位再跳变高度；与旧版一致保持同步。
       buildAsync: false,
       factoryBuilder: NgaHtmlWidgetFactory.new,
-      customWidgetBuilder: _buildCustomWidget,
+      customWidgetBuilder: (element) =>
+          _buildCustomWidget(element, emoticonSize),
       customStylesBuilder: (element) {
         switch (element.localName) {
           case 'a':
@@ -158,36 +164,26 @@ String cssColor(Color color) {
 /// 行内表情：`<nga_emoticon src height descent>`，加载失败或缺 src 时回退为
 /// `[表情]`。
 ///
-/// 与网页版一致按原图尺寸显示：高度取 `height`（图片原始高度），宽度随图片比例；
-/// 缺 `height` 时按图片自身尺寸。垂直方向对齐文字基线，底边再下沉 `descent`
+/// 显示边长取界面设置的「表情大小」（[NgaEmoticonImage] 内部按 `contain`
+/// 缩放，非正方形表情不拉伸）。垂直方向对齐文字基线，底边再下沉 `descent`
 /// （网页的 `vertical-align` 负值）。
 ///
-/// 用 [CachedNetworkImage] 走磁盘缓存，App 重启后不必重新下载。加载中显示与
-/// 高度相同的透明正方形占位：OctoImage 的占位不受 `height` 约束，默认的空
-/// `Container` 在行内会撑满整行宽度；正方形保证行高不跳，宽度也接近多数表情。
-/// 占位和图片都没有文字基线，[EmoticonBaseline] 按同一个 `descent` 对齐，
-/// 加载前后位置一致；失败时的 `[表情]` 沿用文字自身基线。关掉淡入淡出，
-/// 避免占位在淡出期间把宽度撑在正方形上，也让缓存命中的表情直接出现。
-Widget? _buildCustomWidget(dom.Element element) {
+/// [NgaEmoticonImage] 走项目自己的 Dio 下载 + 进程内字节缓存，并在解码后
+/// 分析像素：深色主题下把 AC娘这类「纯黑线稿 + 透明背景」的表情反相成白色，
+/// 否则会与深色背景融为一体（彩色表情不受影响）。占位和图片都没有文字基线，
+/// [EmoticonBaseline] 按同一个 `descent` 对齐，加载前后位置一致。
+Widget? _buildCustomWidget(dom.Element element, double emoticonSize) {
   if (element.localName != 'nga_emoticon') return null;
   final src = element.attributes['src'];
   if (src == null || src.isEmpty) {
     return const InlineCustomWidget(child: Text('[表情]'));
   }
-  final height = double.tryParse(element.attributes['height'] ?? '');
   return InlineCustomWidget(
     child: EmoticonBaseline(
       descent: double.tryParse(element.attributes['descent'] ?? '') ?? 0,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: CachedNetworkImage(
-          imageUrl: src,
-          height: height,
-          fadeInDuration: Duration.zero,
-          fadeOutDuration: Duration.zero,
-          placeholder: (_, _) => SizedBox.square(dimension: height ?? 0),
-          errorWidget: (_, _, _) => const Text('[表情]'),
-        ),
+        child: NgaEmoticonImage(url: src, size: emoticonSize),
       ),
     ),
   );

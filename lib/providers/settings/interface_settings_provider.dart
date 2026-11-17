@@ -44,21 +44,31 @@ class InterfaceSettingsState {
   final double titleSizeMultiple;
   final CustomLineHeight lineHeight;
 
+  /// 帖子内容里表情的显示边长（px）。AC娘等表情按原尺寸渲染太小/太大时在此调。
+  final double emoticonSize;
+
+  static const double defaultEmoticonSize = 24;
+  static const double minEmoticonSize = 16;
+  static const double maxEmoticonSize = 96;
+
   const InterfaceSettingsState({
     this.contentSizeMultiple = 1.0,
     this.titleSizeMultiple = 1.0,
     this.lineHeight = CustomLineHeight.MEDIUM,
+    this.emoticonSize = defaultEmoticonSize,
   });
 
   InterfaceSettingsState copyWith({
     double? contentSizeMultiple,
     double? titleSizeMultiple,
     CustomLineHeight? lineHeight,
+    double? emoticonSize,
   }) {
     return InterfaceSettingsState(
       contentSizeMultiple: contentSizeMultiple ?? this.contentSizeMultiple,
       titleSizeMultiple: titleSizeMultiple ?? this.titleSizeMultiple,
       lineHeight: lineHeight ?? this.lineHeight,
+      emoticonSize: emoticonSize ?? this.emoticonSize,
     );
   }
 }
@@ -82,12 +92,29 @@ class InterfaceSettingsNotifier extends Notifier<InterfaceSettingsState> {
     final lineHeightIndex =
         settings.getInt(PrefsKeys.uiLineHeight) ??
         CustomLineHeight.MEDIUM.index;
+    final emoticonSize =
+        settings.getDouble(PrefsKeys.uiEmoticonSize) ??
+        InterfaceSettingsState.defaultEmoticonSize;
 
     state = InterfaceSettingsState(
       contentSizeMultiple: contentSize,
       titleSizeMultiple: titleSize,
       lineHeight: _getLineHeightByIndex(lineHeightIndex),
+      emoticonSize: emoticonSize.clamp(
+        InterfaceSettingsState.minEmoticonSize,
+        InterfaceSettingsState.maxEmoticonSize,
+      ),
     );
+  }
+
+  Future<void> setEmoticonSize(double size) async {
+    final clamped = size.clamp(
+      InterfaceSettingsState.minEmoticonSize,
+      InterfaceSettingsState.maxEmoticonSize,
+    );
+    state = state.copyWith(emoticonSize: clamped);
+    final settings = await _settings;
+    await settings.setDouble(PrefsKeys.uiEmoticonSize, clamped);
   }
 
   Future<void> setContentSizeMultiple(double multiple) async {

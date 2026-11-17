@@ -42,6 +42,7 @@ class NgaHtmlContentWidget extends ConsumerWidget {
         quoteBodyByPid: quoteBodyByPid,
       ),
       enableImageTap: true,
+      emoticonSize: interfaceState.emoticonSize,
       textStyle: TextStyle(
         fontSize: Dimen.bodyMedium * interfaceState.contentSizeMultiple,
         height: interfaceState.lineHeight.size,

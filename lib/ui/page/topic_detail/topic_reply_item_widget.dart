@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:collection/collection.dart' show IterableExtension;
+import 'package:community_material_icon/community_material_icon.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
@@ -105,7 +106,6 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
     // 评论楼层使用真实评论内容渲染
     final contentReply = widget.commentSource ?? widget.reply;
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
     final thumbBg = colorScheme.surfaceContainerHigh;
     final thumbFgActive = colorScheme.primary;
     final thumbFgInactive = colorScheme.onSurfaceVariant;
@@ -176,21 +176,57 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                         ),
                       ],
                     ),
-                    if (headerStats.isNotEmpty)
-                      Wrap(
-                        children: [
-                          for (final stat in headerStats)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 16),
-                              child: Text(
-                                stat,
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
+                    Wrap(
+                      children: [
+                        for (final stat in headerStats)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 16),
+                            child: Text(
+                              stat,
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color,
+                                fontSize: Dimen.bodySmall,
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                        // 楼层号紧跟在发帖数右边（原先单独占一行挂在头像下面）
+                        Padding(
+                          padding: EdgeInsets.only(right: 16),
+                          child: Text(
+                            "[${widget.reply.lou} 楼]",
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.color,
+                              fontSize: Dimen.bodySmall,
+                            ),
+                          ),
+                        ),
+                        // 评论楼层标识
+                        if (widget.commentSource != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 0,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              "评论",
+                              style: TextStyle(
+                                color: colorScheme.onSecondaryContainer,
+                                fontSize: Dimen.labelSmall,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                     if (widget.medalList?.isNotEmpty ?? false)
                       Padding(
                         padding: const EdgeInsets.only(top: 6, right: 12),
@@ -202,44 +238,7 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
             ),
           ],
         ),
-        Row(
-          children: [
-            Padding(
-              padding: EdgeInsets.only(left: 16, bottom: 8),
-              child: Row(
-                children: [
-                  Text(
-                    "[${widget.reply.lou} 楼]",
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  // 评论楼层标识
-                  if (widget.commentSource != null) ...[
-                    const SizedBox(width: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        "评论",
-                        style: textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSecondaryContainer,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-        SizedBox(
+SizedBox(
           // 评论楼层隐藏"对主题发表了一条评论"占位标题
           height:
               widget.commentSource != null ||
@@ -248,12 +247,13 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
               : null,
           width: double.infinity,
           child: Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+            padding: EdgeInsets.only(left: 16, right: 16, bottom: 8),
             child: Text(
               code_utils.unescapeHtml(widget.reply.subject),
-              style: textTheme.titleLarge?.copyWith(
+              style: TextStyle(
+                fontSize: Dimen.titleLarge,
                 fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
                 decoration: blockDecoration,
               ),
             ),
@@ -339,14 +339,15 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                       _reactionButton(
                         tooltip: "点赞",
                         icon: isLiked
-                            ? Icons.thumb_up
-                            : Icons.thumb_up_outlined,
+                            ? CommunityMaterialIcons.thumb_up
+                            : CommunityMaterialIcons.thumb_up_outline,
                         color: isLiked ? thumbFgActive : thumbFgInactive,
                         onPressed: _toggleLike,
                       ),
                       Text(
                         "${contentReply.score}",
-                        style: textTheme.bodySmall?.copyWith(
+                        style: TextStyle(
+                          fontSize: Dimen.bodySmall,
                           color: isLiked || isDisliked
                               ? thumbFgActive
                               : thumbFgInactive,
@@ -355,8 +356,8 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                       _reactionButton(
                         tooltip: "点踩",
                         icon: isDisliked
-                            ? Icons.thumb_down
-                            : Icons.thumb_down_outlined,
+                            ? CommunityMaterialIcons.thumb_down
+                            : CommunityMaterialIcons.thumb_down_outline,
                         color: isDisliked ? thumbFgActive : thumbFgInactive,
                         onPressed: _toggleDislike,
                       ),
@@ -364,11 +365,12 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                   ),
                 ],
               ),
-              const Spacer(),
+              Spacer(),
               Text(
                 widget.reply.postDate!,
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                style: TextStyle(
+                  fontSize: Dimen.bodySmall,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
                 ),
               ),
             ],
