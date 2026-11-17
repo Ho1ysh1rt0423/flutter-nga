@@ -71,11 +71,14 @@ class TopicDetailPage extends HookConsumerWidget {
 
     useEffect(() {
       void listener() {
-        if (tabController.indexIsChanging) return;
         final index = tabController.index;
+        // 整屏横滑时也要先把页挂上，否则连续快划会滑到没构建的
+        // SizedBox.shrink 占位上，露出空白。
         if (!visitedPages.value.contains(index)) {
           visitedPages.value = {...visitedPages.value, index};
         }
+        // 页码只在切换完成后更新，避免拖动过程中底部页码乱跳。
+        if (tabController.indexIsChanging) return;
         notifier.setCurrentPage(index + 1);
       }
 
@@ -96,9 +99,19 @@ class TopicDetailPage extends HookConsumerWidget {
       tabController.animateTo(target);
     }
 
+    // 手势翻页时，滑动过程中相邻页已经被 TabBarView 摆到视口里，
+    // 因此除了用户访问过的页，当前页左右两页也要预先挂载，
+    // 否则滑到一半会露出 SizedBox.shrink 的空白。
+    final activeIndex = tabController.index;
+    final mountedPages = <int>{
+      ...visitedPages.value.where((i) => i >= 0 && i < length),
+      if (activeIndex > 0) activeIndex - 1,
+      if (activeIndex < length - 1) activeIndex + 1,
+    };
+
     final widgets = <Widget>[
       for (var i = 0; i < length; i++)
-        if (visitedPages.value.contains(i))
+        if (mountedPages.contains(i))
           TopicSinglePage(
             key: ValueKey('topic-$tid-page-${i + 1}'),
             tid: tid!,
@@ -136,14 +149,16 @@ class TopicDetailPage extends HookConsumerWidget {
           ),
         ],
       ),
+      // 翻页用 TabBarView 自带的整屏横滑（PageScrollPhysics）。
+      // 曾经改成「仅左右边缘 72px 起手才翻页」，真机实测直接滑不动了，
+      // 已回退：整屏横滑是 NGA 原版和用户都熟悉的行为。正文里若出现横向
+      // 可滚动内容，Flutter 的手势竞技场会让内层 Scrollable 先赢，不会误翻页。
       body: TabBarView(
-        physics: NeverScrollableScrollPhysics(),
         controller: tabController,
         children: widgets,
       ),
       bottomNavigationBar: BottomAppBar(
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
               tooltip: '上一页',

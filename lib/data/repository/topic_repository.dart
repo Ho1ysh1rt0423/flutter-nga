@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart';
 import 'package:sembast/sembast.dart';
+import 'package:flutter_nga/data/core/nga_dio_configurator.dart';
 import 'package:flutter_nga/data/entity/toggle_like_reaction.dart';
 import 'package:flutter_nga/data/entity/topic.dart';
 import 'package:flutter_nga/data/entity/topic_detail.dart';
@@ -21,6 +22,13 @@ abstract class TopicRepository {
   Future<dynamic> getUserReplies(int authorid, int page);
 
   Future<TopicDetailData> getTopicDetail(int tid, int page, int? authorid);
+
+  /// 只取主楼首图，列表缩略图兜底用。
+  ///
+  /// 服务端只在部分版块给列表接口下发 `attachs`，剑斗绮谭这类版块拿不到，
+  /// 于是对「标记了带附件（type & 8192）但列表没给图」的帖子单独请求主楼。
+  /// 用 `pid=0` 只拿一楼，响应约 3KB。
+  Future<List<String>> getTopicHeadImageUrls(int tid);
 
   Future<TopicDetailData> getTopicReplies(int? pid);
 
@@ -204,6 +212,33 @@ class TopicDataRepository implements TopicRepository {
     } catch (err) {
       rethrow;
     }
+  }
+
+  @override
+  Future<List<String>> getTopicHeadImageUrls(int tid) async {
+    // pid=0 只返回主楼，实测响应约 2.8KB（整页 8~15KB），专门给列表缩略图用。
+    // 允许「截断抢救」：只要主楼那一坨是完整的，后面楼层被砍掉不影响取首图。
+    final Response<Map<String, dynamic>> response = await _dio.get(
+      "read.php?__output=8&tid=$tid&pid=0",
+      options: Options(extra: {
+        NgaDioConfigurator.allowTruncatedRepairKey: true,
+      }),
+    );
+    final data = response.data;
+    if (data == null) return const [];
+    final rows = data["__R"];
+    if (rows is! Map) return const [];
+    for (final value in rows.values) {
+      if (value is! Map) continue;
+      // 主楼：pid / lou 都是 0。服务端偶尔不带这两个字段，那就整页只有一楼
+      final pid = value["pid"];
+      final lou = value["lou"];
+      if (pid != null && pid != 0) continue;
+      if (lou != null && lou != 0) continue;
+      final urls = Topic.parseListAttachmentUrls(value["attachs"]);
+      if (urls.isNotEmpty) return urls;
+    }
+    return const [];
   }
 
   @override

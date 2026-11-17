@@ -41,6 +41,7 @@ class NgaHtmlContentWidget extends ConsumerWidget {
         postDateTimestamp: postDateTimestamp,
         quoteBodyByPid: quoteBodyByPid,
       ),
+      enableImageTap: true,
       textStyle: TextStyle(
         fontSize: Dimen.bodyMedium * interfaceState.contentSizeMultiple,
         height: interfaceState.lineHeight.size,
