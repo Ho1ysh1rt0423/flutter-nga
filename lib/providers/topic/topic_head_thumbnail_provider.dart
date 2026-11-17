@@ -9,13 +9,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// 原神有；剑斗绮谭这类没有），所以对「标了带附件（type & 8192）但列表没给图」
 /// 的帖子，单独请求主楼取首图：`read.php?__output=8&tid=X&pid=0`，实测约 3KB。
 ///
-/// 两个约束：
+/// 三个约束：
 /// - **串行**：一屏可能十几条带附件帖子，同时打出去太像爬虫，宁可慢一点；
-/// - **只问一次**：结果（包括失败）都记住，列表滚来滚去不会重复请求。
+/// - **只问一次**：结果（包括失败）都记住，列表滚来滚去不会重复请求；
+/// - **尽量少发**：成功取到的首图 URL 会经 [persist] 落盘，重启后从
+///   [loadPersisted] 回灌内存，杀进程也不再重新拉。
 class TopicHeadThumbnailQueue {
-  TopicHeadThumbnailQueue(this._read);
+  TopicHeadThumbnailQueue(this._read, {this.loadPersisted, this.persist});
 
   final Future<List<String>> Function(int tid) _read;
+
+  /// 启动时从持久层读回的历史结果（tid → 首图 URL）
+  final Future<Map<int, String>> Function()? loadPersisted;
+
+  /// 成功取到首图后的落盘回调
+  final Future<void> Function(int tid, String url)? persist;
 
   /// tid → 首图 URL；值为 null 表示「主楼没图」或「请求失败」，两者都不再重试
   final Map<int, String?> _cache = {};
@@ -30,6 +38,9 @@ class TopicHeadThumbnailQueue {
   /// 串行队列的尾巴
   Future<void> _tail = Future<void>.value();
 
+  /// 启动时从持久层回灌缓存（只记一次，失败当作没有持久数据）
+  Future<void>? _preloadFuture;
+
   Future<String?> fetch(int tid) {
     if (_cache.containsKey(tid)) return Future.value(_cache[tid]);
     final pending = _pending[tid];
@@ -40,6 +51,14 @@ class TopicHeadThumbnailQueue {
     _tail = _tail.then((_) async {
       String? url;
       try {
+        // 持久层回灌可能在入队之后才完成：执行前再看一眼缓存，
+        // 命中就省掉这次 HTTP。
+        await _ensureLoaded();
+        final cached = _cache[tid];
+        if (cached != null) {
+          if (!completer.isCompleted) completer.complete(cached);
+          return;
+        }
         final urls = await _read(tid);
         url = urls.isEmpty ? null : urls.first;
       } catch (_) {
@@ -48,12 +67,30 @@ class TopicHeadThumbnailQueue {
       }
       _cache[tid] = url;
       _pending.remove(tid);
+      if (url != null) persist?.call(tid, url).catchError((_) {});
       if (!completer.isCompleted) completer.complete(url);
     });
     return completer.future;
   }
 
-  /// 清空缓存（切换账号 / 测试用）
+  Future<void> _ensureLoaded() {
+    final existing = loadPersisted;
+    if (existing == null) return Future<void>.value();
+    return _preloadFuture ??= existing()
+        .then<void>((map) {
+          for (final entry in map.entries) {
+            if (!_cache.containsKey(entry.key)) {
+              _cache[entry.key] = entry.value;
+            }
+          }
+        })
+        .catchError((_) {
+          // 持久层坏了不影响主流程，当作没有持久数据
+        });
+  }
+
+  /// 清空内存缓存（切换账号 / 测试用）。持久层里的 URL 是公开图片地址，
+  /// 与账号无关，不做清理。
   void clear() {
     _cache.clear();
   }
@@ -64,8 +101,11 @@ final topicHeadThumbnailQueueProvider = Provider<TopicHeadThumbnailQueue>((ref) 
   // 缓存跟着丢，同一个 tid 会被反复请求（实测一次滚动发了 5 遍）。缩略图缓存
   // 本来就该是进程级的，这里显式保活。
   ref.keepAlive();
+  final repository = ref.read(topicRepositoryProvider);
   return TopicHeadThumbnailQueue(
-    (tid) => ref.read(topicRepositoryProvider).getTopicHeadImageUrls(tid),
+    repository.getTopicHeadImageUrls,
+    loadPersisted: repository.loadHeadThumbnailCache,
+    persist: repository.saveHeadThumbnail,
   );
 });
 
