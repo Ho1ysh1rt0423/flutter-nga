@@ -268,21 +268,83 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('1/3'), findsOneWidget);
 
-    // 翻页交给 TabBarView 自带的 PageScrollPhysics：整屏横滑就该翻。
-    // 曾经换成 NeverScrollableScrollPhysics（改由边缘手势接管），真机上
-    // 直接滑不动了，这里守住这个回归点。
-    final scrollables = tester.widgetList<Scrollable>(
-      find.descendant(
-        of: find.byType(TabBarView),
-        matching: find.byType(Scrollable),
+    // 明确的横向拖动（几乎不带纵向分量）→ 翻到第 2 页。
+    // 用多步 move 模拟真实手指滑动（tester.drag 只有单步 move）。
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(TabBarView)),
+    );
+    for (var i = 0; i < 4; i++) {
+      await gesture.moveBy(const Offset(-50, -2));
+      await tester.pump();
+    }
+    await gesture.up();
+    // 翻页成功后第 2 页会挂载并触发 refreshOnStart，先把它挂着的请求
+    // 完成，否则 EasyRefresh 指示器一直转，pumpAndSettle 会超时
+    for (final entry in harness.requests.entries) {
+      if (!entry.value.isCompleted) {
+        entry.value.complete(
+          const TopicSinglePageState(
+            maxPage: 3,
+            maxFloor: 60,
+            topic: Topic(tid: 2, subject: '多页帖子'),
+          ),
+        );
+      }
+    }
+    await tester.pumpAndSettle();
+    expect(find.text('2/3'), findsOneWidget,
+        reason: '横向占优的滑动必须翻页');
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('a diagonal drag scrolls instead of flipping', (tester) async {
+    // 斜向滑动（纵向分量不小）必须留给列表滚动，不能翻页。
+    final harness = _TopicRequestHarness();
+    final container = ProviderContainer(
+      overrides: [
+        topicSinglePageProvider.overrideWith2(harness.createNotifier),
+      ],
+    );
+    addTearDown(container.dispose);
+    const requestKey = TopicSinglePageKey(tid: 2, page: 1);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: TopicDetailPage(2, 10),
+        ),
       ),
     );
-    expect(scrollables, isNotEmpty);
-    expect(
-      scrollables.first.physics,
-      isNot(isA<NeverScrollableScrollPhysics>()),
-      reason: 'TabBarView 必须保留可滚动 physics，否则整屏横滑无法翻页',
+    await harness.waitForRefreshStart(tester, requestKey);
+
+    harness.requests[requestKey]!.complete(
+      const TopicSinglePageState(
+        maxPage: 3,
+        maxFloor: 60,
+        topic: Topic(tid: 2, subject: '多页帖子'),
+      ),
     );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.text('1/3'), findsOneWidget);
+
+    // 45° 斜滑（dx 与 dy 相当）→ 不翻页
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(TabBarView)),
+    );
+    for (var i = 0; i < 4; i++) {
+      await gesture.moveBy(const Offset(-40, -40));
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(find.text('1/3'), findsOneWidget,
+        reason: '斜向滑动不应误触翻页');
 
     // 收尾：把还挂着的请求完成，避免 teardown 时残留定时器
     for (final entry in harness.requests.entries) {

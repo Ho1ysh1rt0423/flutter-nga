@@ -37,6 +37,7 @@ class NgaHtmlCommentWidget extends ConsumerWidget {
         postDateTimestamp: postDateTimestamp,
       ),
       decorateBlocks: false,
+      emoticonSize: interfaceState.emoticonSize,
       textStyle: TextStyle(
         fontSize: Dimen.bodyMedium * interfaceState.contentSizeMultiple,
         height: interfaceState.lineHeight.size,

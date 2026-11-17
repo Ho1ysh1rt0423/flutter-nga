@@ -17,6 +17,7 @@ const Map<String, Object> _legacySettings = {
   PrefsKeys.uiContentSizeMultiple: 1.25,
   PrefsKeys.uiTitleSizeMultiple: 0.9,
   PrefsKeys.uiLineHeight: 3,
+  PrefsKeys.uiEmoticonSize: 32.0,
   PrefsKeys.blocklistClientBlockEnabled: true,
   PrefsKeys.blocklistListBlockEnabled: false,
   PrefsKeys.blocklistDetailsBlockEnabled: false,
