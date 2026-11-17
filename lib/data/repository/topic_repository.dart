@@ -205,10 +205,22 @@ class TopicDataRepository implements TopicRepository {
     int? authorid,
   ) async {
     try {
-      Response<Map<String, dynamic>> response = await _dio.get(
+      // 允许「截断抢救」：NGA 源站偶发把响应在中途截断（重试也不恢复），把
+      // 已写完整的楼层抢出来总比整页报错强。抢救出的数据带 truncated 标记，
+      // 界面会提示「内容不完整」并禁用翻页（详见 TopicDetailData.maxPage）。
+      final Response<Map<String, dynamic>> response = await _dio.get(
         "read.php?__output=8&tid=$tid&page=$page${authorid == null ? "" : "&authorid=$authorid"}",
+        options: Options(extra: {
+          NgaDioConfigurator.allowTruncatedRepairKey: true,
+        }),
       );
-      return TopicDetailData.fromJson(response.data!);
+      return TopicDetailData.fromJson(
+        response.data!,
+        truncated:
+            response.requestOptions.extra[NgaDioConfigurator
+                .truncatedRepairedKey] ==
+            true,
+      );
     } catch (err) {
       rethrow;
     }
@@ -244,10 +256,21 @@ class TopicDataRepository implements TopicRepository {
   @override
   Future<TopicDetailData> getTopicReplies(int? pid) async {
     try {
-      Response<Map<String, dynamic>> response = await _dio.get(
+      // 与 getTopicDetail 同理允许截断抢救：调用方（热评展开 / 回复详情弹窗）
+      // 只消费 replyList / userList，缺总览字段不影响使用。
+      final Response<Map<String, dynamic>> response = await _dio.get(
         "read.php?__output=8&pid=$pid",
+        options: Options(extra: {
+          NgaDioConfigurator.allowTruncatedRepairKey: true,
+        }),
       );
-      return TopicDetailData.fromJson(response.data!);
+      return TopicDetailData.fromJson(
+        response.data!,
+        truncated:
+            response.requestOptions.extra[NgaDioConfigurator
+                .truncatedRepairedKey] ==
+            true,
+      );
     } catch (err) {
       rethrow;
     }

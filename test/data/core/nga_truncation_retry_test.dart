@@ -106,4 +106,33 @@ void main() {
     // 重试由拦截器内部 copyWith 追加，不影响外部调用者的 options
     expect(adapter.requests.length, 2);
   });
+
+  test('repair keeps complete floors and marks the response', () async {
+    // 重试两次仍截断（服务端持续异常），但调用方声明可容忍缺数据：
+    // 应抢救出已写完整的楼层，并在 extra 里打 truncatedRepairedKey 标记，
+    // 让上层界面知道「这不是完整内容」。
+    final adapter = _TruncatingAdapter(
+      '{"data":{"__R":{"0":{"pid":0,"content":"主楼"},"1":{"pid":2,"authorid":67',
+      '{"data":{"__R":{"0":{"pid":0,"content":"主楼"},"1":{"pid":2,"authorid":67',
+    );
+    final dio = Dio()..options.baseUrl = 'https://bbs.nga.cn/';
+    dio.httpClientAdapter = adapter;
+    NgaDioConfigurator(() async => null).configure(dio);
+
+    final response = await dio.get<Map<String, dynamic>>(
+      'read.php?__output=8&tid=1&page=1',
+      options: Options(
+        extra: {NgaDioConfigurator.allowTruncatedRepairKey: true},
+      ),
+    );
+
+    expect(adapter.requests.length, NgaDioConfigurator.maxTruncationRetries + 1);
+    final rows = response.data!['__R'] as Map;
+    expect(rows.keys, ['0'], reason: '只应保留写完整的第 0 楼');
+    expect(
+      response.requestOptions.extra[NgaDioConfigurator.truncatedRepairedKey],
+      isTrue,
+      reason: '界面要靠这个标记提示「内容不完整」',
+    );
+  });
 }
