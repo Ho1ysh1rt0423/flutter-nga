@@ -5,6 +5,7 @@ import 'package:flutter_nga/data/entity/forum.dart';
 import 'package:flutter_nga/providers/forum/favourite_forum_list_provider.dart';
 import 'package:flutter_nga/providers/forum/favourite_forum_provider.dart';
 import 'package:flutter_nga/ui/widget/forum_grid_item_widget.dart';
+import 'package:flutter_nga/ui/widget/recent_forum_strip.dart';
 import 'package:flutter_nga/utils/app_toast.dart';
 import 'package:flutter_nga/utils/hooks/easy_refresh_hooks.dart';
 import 'package:flutter_nga/utils/hooks/scroll_to_top.dart';
@@ -47,18 +48,28 @@ class _FavouriteForumGroupState extends ConsumerState<FavouriteForumGroupPage> {
               AppToast.error(error);
             }
           },
-          child: GridView.builder(
+          child: CustomScrollView(
             controller: scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: itemWidth / itemHeight,
-            ),
-            itemCount: forums.length,
-            itemBuilder: (_, index) => ForumGridItemWidget(
-              forums[index],
-              onLongPress: () => _showDeleteDialog(notifier, forums[index]),
-            ),
+            slivers: [
+              // 最近访问快捷条：没有记录时内部返回 shrink，不占位
+              const SliverToBoxAdapter(child: RecentForumStrip()),
+              SliverPadding(
+                padding: EdgeInsets.zero,
+                sliver: SliverGrid.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: itemWidth / itemHeight,
+                  ),
+                  itemCount: forums.length,
+                  itemBuilder: (_, index) => ForumGridItemWidget(
+                    forums[index],
+                    onLongPress: () =>
+                        _showDeleteDialog(notifier, forums[index]),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         if (state.isSyncing && forums.isEmpty)

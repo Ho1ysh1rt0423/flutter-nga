@@ -24,6 +24,10 @@ const Map<String, Object> _legacySettings = {
   PrefsKeys.blocklistBlockMode: 2,
 };
 
+/// fork 新增的设置 key：旧版本（ee86767）从未写过，因此不在迁移范围内，
+/// 但必须在 allowList 里（新增 key 必须在此显式登记，否则下面的守护会红）。
+const Set<String> _newSettingsKeys = {PrefsKeys.visitedForums};
+
 Future<SharedPreferencesWithCache> _restartApp() async {
   // 模拟冷启动：清空进程内缓存，但保留两个存储中的数据。
   SharedPreferences.resetStatic();
@@ -35,8 +39,8 @@ Future<SharedPreferencesWithCache> _restartApp() async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('PrefsKeys.all covers every legacy setting', () {
-    expect(PrefsKeys.all, _legacySettings.keys.toSet());
+  test('PrefsKeys.all covers legacy settings plus registered new keys', () {
+    expect(PrefsKeys.all, {..._legacySettings.keys, ..._newSettingsKeys});
   });
 
   test('adaptive theme key matches AdaptiveTheme.prefKey', () {
@@ -105,7 +109,9 @@ void main() {
     final keys = await SharedPreferencesAsync().getKeys();
     expect(keys, isNot(contains('some_plugin_value')));
     expect(keys, isNot(contains('some_plugin_list')));
-    expect(keys, containsAll(PrefsKeys.all));
+    // 只迁移旧版本真实写过的 key；新增 key 没有历史值，不会被凭空创建。
+    expect(keys, containsAll(_legacySettings.keys));
+    expect(keys, isNot(containsAll(_newSettingsKeys)));
   });
 
   test(
