@@ -27,6 +27,18 @@ Map<String, dynamic>? asJsonMapOrNull(dynamic value, String path) {
   return asJsonMap(value, path);
 }
 
+/// 期望 Map 且**容忍缺失与变型**：缺失、非 Map（NGA 服务端常把空关联数组
+/// 编码成 `[]`）都记日志后返回空 Map，调用方按「无数据」继续解析，
+/// 不要让一个字段的变型把整页打崩。
+Map<String, dynamic> asJsonMapOrEmpty(dynamic value, String path) {
+  if (value == null) return {};
+  try {
+    return asJsonMap(value, path);
+  } on FormatException {
+    return {};
+  }
+}
+
 /// 记录一次 JSON 类型不符（字段路径 + 值预览），供解析代码在容错返回前留痕。
 void logJsonTypeMismatch(
   String path,

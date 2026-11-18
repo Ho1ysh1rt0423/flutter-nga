@@ -82,20 +82,24 @@ class ConversationItemWidget extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Icon(
-                      Icons.access_time,
-                      size: 14,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      code_utils.formatPostDate(
-                        conversation!.lastModify! * 1000,
-                      ),
-                      style: textTheme.bodySmall?.copyWith(
+                    // lastModify 缺失/变型时实体兜 null（int?），这里不能
+                    // 断言——缺字段就整个隐藏时间，而不是把列表打崩。
+                    if (conversation!.lastModify != null) ...[
+                      Icon(
+                        Icons.access_time,
+                        size: 14,
                         color: colorScheme.onSurfaceVariant,
                       ),
-                    ),
+                      const SizedBox(width: 4),
+                      Text(
+                        code_utils.formatPostDate(
+                          conversation!.lastModify! * 1000,
+                        ),
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
