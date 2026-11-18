@@ -29,6 +29,9 @@ abstract final class PrefsKeys {
   static const blocklistDetailsBlockEnabled = 'blocklist_detailsBlockEnabled';
   static const blocklistBlockMode = 'blocklist_blockMode';
 
+  // RecentForumNotifier：最近访问的版块（JSON 字符串列表，最新的在前）
+  static const visitedForums = 'visited_forums';
+
   static const Set<String> all = {
     baseUrlConfigKey,
     customBaseUrlValue,
@@ -44,6 +47,7 @@ abstract final class PrefsKeys {
     blocklistListBlockEnabled,
     blocklistDetailsBlockEnabled,
     blocklistBlockMode,
+    visitedForums,
   };
 }
 

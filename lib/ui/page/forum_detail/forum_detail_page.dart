@@ -2,7 +2,9 @@ import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_nga/data/entity/forum.dart';
 import 'package:flutter_nga/providers/forum/forum_detail_provider.dart';
+import 'package:flutter_nga/providers/forum/recent_forum_provider.dart';
 import 'package:flutter_nga/providers/settings/blocklist_settings_provider.dart';
 import 'package:flutter_nga/ui/page/forum_detail/forum_favourite_button_widet.dart';
 import 'package:flutter_nga/ui/widget/keep_alive_tab_view.dart';
@@ -46,6 +48,16 @@ class ForumDetailPage extends HookConsumerWidget {
     final notifier = ref.read(forumDetailProvider(fid).notifier);
     final blockFilter = ref.watch(blockFilterProvider);
     final topics = blockFilter.visibleTopics(state.list);
+
+    // 首页「最近访问」的唯一数据源。所有版块入口都经过本页，所以只在这里
+    // 记一笔，不用在每个跳转点重复接线。标题缺失（少数链接只带 fid）时
+    // 没法在快捷条上显示名称，跳过记录。
+    usePostFrameEffect(() {
+      if (name == null || name!.isEmpty) return;
+      ref
+          .read(recentForumProvider.notifier)
+          .record(Forum(fid, name!, type: type ?? 0));
+    }, [fid, name]);
 
     Future<void> onRefresh() async {
       try {
