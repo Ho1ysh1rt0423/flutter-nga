@@ -57,11 +57,7 @@ void main() {
     expect(response.data, isA<Map<String, dynamic>>());
     expect(response.data!['ok'], 1);
     expect(adapter.requests.length, 2, reason: '应该重试了一次');
-    expect(
-      adapter.requests[1],
-      adapter.requests[0],
-      reason: '重试应使用相同 URL',
-    );
+    expect(adapter.requests[1], adapter.requests[0], reason: '重试应使用相同 URL');
   });
 
   test('truncated JSON gives up after maxTruncationRetries', () async {
@@ -77,11 +73,7 @@ void main() {
     await expectLater(
       dio.get<Map<String, dynamic>>('read.php?__output=8&tid=1&page=1'),
       throwsA(
-        isA<DioException>().having(
-          (e) => e.error,
-          'error',
-          contains('不完整'),
-        ),
+        isA<DioException>().having((e) => e.error, 'error', contains('不完整')),
       ),
     );
     expect(
@@ -92,10 +84,7 @@ void main() {
   });
 
   test('retries carry the truncation counter in extra', () async {
-    final adapter = _TruncatingAdapter(
-      '{"data":{"tid":',
-      '{"data":{"ok":1}}',
-    );
+    final adapter = _TruncatingAdapter('{"data":{"tid":', '{"data":{"ok":1}}');
     final dio = Dio()..options.baseUrl = 'https://bbs.nga.cn/';
     dio.httpClientAdapter = adapter;
     NgaDioConfigurator(() async => null).configure(dio);
@@ -126,7 +115,10 @@ void main() {
       ),
     );
 
-    expect(adapter.requests.length, NgaDioConfigurator.maxTruncationRetries + 1);
+    expect(
+      adapter.requests.length,
+      NgaDioConfigurator.maxTruncationRetries + 1,
+    );
     final rows = response.data!['__R'] as Map;
     expect(rows.keys, ['0'], reason: '只应保留写完整的第 0 楼');
     expect(
@@ -136,8 +128,7 @@ void main() {
     );
   });
 
-  test('truncationMaxRetriesKey 0 skips retries and repairs at once',
-      () async {
+  test('truncationMaxRetriesKey 0 skips retries and repairs at once', () async {
     // 缩略图请求的配置：可抢救 + 不重试。串行队列里每个截断的 tid 若先走
     // 0.9s + 2.5s 重试再抢救，会把后面的缩略图全部卡住。
     final adapter = _TruncatingAdapter(

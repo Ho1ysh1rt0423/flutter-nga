@@ -16,11 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// - **尽量少发**：成功取到的图 URL 会经 [persist] 落盘，重启后从
 ///   [loadPersisted] 回灌内存，杀进程也不再重新拉。
 class TopicHeadThumbnailQueue {
-  TopicHeadThumbnailQueue(
-    this._read, {
-    this.loadPersisted,
-    this.persist,
-  });
+  TopicHeadThumbnailQueue(this._read, {this.loadPersisted, this.persist});
 
   final Future<List<String>> Function(int tid) _read;
 
@@ -102,7 +98,9 @@ class TopicHeadThumbnailQueue {
   }
 }
 
-final topicHeadThumbnailQueueProvider = Provider<TopicHeadThumbnailQueue>((ref) {
+final topicHeadThumbnailQueueProvider = Provider<TopicHeadThumbnailQueue>((
+  ref,
+) {
   // Riverpod 3 默认 autoDispose：列表滚出屏这个 provider 就被销毁，队列里的
   // 缓存跟着丢，同一个 tid 会被反复请求（实测一次滚动发了 5 遍）。缩略图缓存
   // 本来就该是进程级的，这里显式保活。

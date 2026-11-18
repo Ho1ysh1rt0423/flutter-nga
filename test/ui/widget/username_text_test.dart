@@ -4,8 +4,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_nga/ui/widget/username_text.dart';
 
 void main() {
-  testWidgets('renders the full username as plain text without a color badge',
-      (tester) async {
+  testWidgets('renders the full username as plain text without a color badge', (
+    tester,
+  ) async {
     const username = '👩‍💻Alice';
     final semantics = tester.ensureSemantics();
 
