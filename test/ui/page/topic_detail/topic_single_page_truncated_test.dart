@@ -37,7 +37,7 @@ Future<void> _pumpPage(WidgetTester tester, ProviderContainer container) async {
 }
 
 void main() {
-  const bannerText = '服务端返回的数据不完整，当前仅显示已加载的楼层';
+  const bannerText = '服务端返回的数据不完整';
 
   testWidgets('truncated page shows the incomplete-content banner', (
     tester,

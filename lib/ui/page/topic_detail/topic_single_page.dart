@@ -47,8 +47,8 @@ class TopicSinglePage extends HookConsumerWidget {
     // 直接调 onRefresh，连点会并发多个请求互相覆盖状态
     final refreshing = useRef(false);
 
-    Future<void> onRefresh() async {
-      if (refreshing.value) return;
+    Future<IndicatorResult?> onRefresh({bool fromRetryButton = false}) async {
+      if (refreshing.value) return null;
       refreshing.value = true;
       try {
         replyWidgetCache.value.clear();
@@ -56,7 +56,7 @@ class TopicSinglePage extends HookConsumerWidget {
           topicSinglePageProvider(providerKey).notifier,
         );
         final next = await notifier.refresh();
-        if (!context.mounted) return;
+        if (!context.mounted) return null;
 
         ref
             .read(topicDetailProvider(detailProviderKey).notifier)
@@ -66,11 +66,19 @@ class TopicSinglePage extends HookConsumerWidget {
               topic: next.topic,
             );
         refreshController.finishRefresh();
+        // 服务端截断是源站坏对象：短时间内重试/下拉拿到的都是同一份坏数据
+        // （实测换参数也一样），只有等它几分钟自愈。重试后仍截断时明确告知，
+        // 别让用户以为多刷几次有用。
+        if (fromRetryButton && next.truncated) {
+          AppToast.info('服务端仍未恢复，建议过几分钟再试');
+        }
+        return null;
       } catch (err) {
-        if (!context.mounted) return;
+        if (!context.mounted) return null;
 
         refreshController.finishRefresh(IndicatorResult.fail);
         AppToast.error(err);
+        return IndicatorResult.fail;
       } finally {
         refreshing.value = false;
       }
@@ -93,7 +101,7 @@ class TopicSinglePage extends HookConsumerWidget {
       child: EasyRefresh(
         controller: refreshController,
         refreshOnStart: state.replyList.isEmpty,
-        onRefresh: onRefresh,
+        onRefresh: () => onRefresh(),
         child: Column(
           children: [
             if (state.truncated) _buildTruncatedBanner(context, onRefresh),
@@ -123,7 +131,7 @@ class TopicSinglePage extends HookConsumerWidget {
   /// 截断抢救的数据不是完整内容：顶部明确提示，避免用户以为帖子就这几楼。
   Widget _buildTruncatedBanner(
     BuildContext context,
-    Future<void> Function() onRefresh,
+    Future<IndicatorResult?> Function({bool fromRetryButton}) onRefresh,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
@@ -139,13 +147,18 @@ class TopicSinglePage extends HookConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '服务端返回的数据不完整，当前仅显示已加载的楼层；稍后下拉刷新可恢复',
+                  // 强调「服务端故障、需等待」，避免用户反复下拉以为马上能刷出来
+                  '服务端返回的数据不完整（NGA 服务端故障，通常几分钟内自行恢复）；'
+                  '当前仅显示已加载的楼层',
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ),
               const SizedBox(width: 8),
-              TextButton(onPressed: onRefresh, child: const Text('重试')),
+              TextButton(
+                onPressed: () => onRefresh(fromRetryButton: true),
+                child: const Text('重试'),
+              ),
             ],
           ),
         ),
