@@ -81,7 +81,7 @@ class MessageItemWidget extends StatelessWidget {
     children.add(
       Padding(
         padding: EdgeInsets.all(16),
-        child: NgaHtmlContentWidget(content: message.content),
+        child: NgaHtmlContentWidget(content: message.content, selectable: true),
       ),
     );
     children.add(Divider(height: 1));

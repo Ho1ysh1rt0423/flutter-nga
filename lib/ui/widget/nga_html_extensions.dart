@@ -29,6 +29,7 @@ class NgaHtml extends StatelessWidget {
     this.decorateBlocks = true,
     this.enableImageTap = false,
     this.emoticonSize = InterfaceSettingsState.defaultEmoticonSize,
+    this.selectable = false,
   });
 
   final String html;
@@ -46,6 +47,11 @@ class NgaHtml extends StatelessWidget {
   /// 表情显示边长，来自界面设置的「表情大小」。
   final double emoticonSize;
 
+  /// 为 true 时包一层 [SelectionArea]，让正文 / 评论文字可以长按选中复制。
+  /// fwfh 只有在祖先存在选择注册器时才会给 RichText 挂 selectionRegistrar，
+  /// 否则长按没有反应。默认关闭，由帖子正文 / 评论显式开启。
+  final bool selectable;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -55,7 +61,7 @@ class NgaHtml extends StatelessWidget {
       alpha: 0.75,
     );
 
-    return HtmlWidget(
+    final htmlWidget = HtmlWidget(
       html,
       textStyle: textStyle,
       // 长楼层（>1 万字符）默认会异步构建，列表里会先占位再跳变高度；与旧版一致保持同步。
@@ -138,6 +144,11 @@ class NgaHtml extends StatelessWidget {
             )
           : null,
     );
+
+    if (!selectable) return htmlWidget;
+    // SelectionArea 提供选择注册器，fwfh 内部的 RichText 才会挂上
+    // selectionRegistrar，长按才能选中并弹出系统复制菜单。
+    return SelectionArea(child: htmlWidget);
   }
 }
 
