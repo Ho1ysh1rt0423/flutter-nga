@@ -15,6 +15,9 @@ class NgaHtmlCommentWidget extends ConsumerWidget {
   /// 正文整体的文字装饰，用于屏蔽的删除线模式
   final TextDecoration? textDecoration;
 
+  /// 是否允许长按选中复制（帖子正文 / 评论打开）
+  final bool selectable;
+
   const NgaHtmlCommentWidget({
     super.key,
     required this.content,
@@ -23,6 +26,7 @@ class NgaHtmlCommentWidget extends ConsumerWidget {
     this.pid,
     this.postDateTimestamp,
     this.textDecoration,
+    this.selectable = false,
   });
 
   @override
@@ -38,6 +42,7 @@ class NgaHtmlCommentWidget extends ConsumerWidget {
       ),
       decorateBlocks: false,
       emoticonSize: interfaceState.emoticonSize,
+      selectable: selectable,
       textStyle: TextStyle(
         fontSize: Dimen.bodyMedium * interfaceState.contentSizeMultiple,
         height: interfaceState.lineHeight.size,

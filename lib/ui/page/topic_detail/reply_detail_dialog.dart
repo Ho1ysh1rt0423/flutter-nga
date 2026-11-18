@@ -139,6 +139,7 @@ class _ReplyWidgetState extends State<_ReplyWidget> {
               tid: widget.reply.tid,
               pid: widget.reply.pid,
               postDateTimestamp: widget.reply.postDateTimestamp,
+              selectable: true,
             ),
           ),
         ),
