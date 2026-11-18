@@ -72,6 +72,59 @@ void main() {
         '系统',
       ]);
     });
+
+    test('userInfo / allmsgs 变型为 List（空关联数组）时按无数据处理', () {
+      // NGA/PHP 把空关联数组编码成 []，整页不能因此打崩
+      final empty = MessageListData.fromJson({
+        'currentPage': 1,
+        'userInfo': <dynamic>[],
+        'allmsgs': <dynamic>[],
+      });
+      expect(empty.userList, isEmpty);
+      expect(empty.messageList, isEmpty);
+
+      final withList = MessageListData.fromJson({
+        'currentPage': 1,
+        'userInfo': {
+          '100': {'uid': 100, 'username': 'alice'},
+        },
+        'allmsgs': <dynamic>[],
+      });
+      expect(withList.userList, hasLength(1));
+      expect(withList.messageList, isEmpty);
+    });
+
+    test('userInfo / allmsgs 缺失时按无数据处理', () {
+      final data = MessageListData.fromJson({'currentPage': 1});
+      expect(data.userList, isEmpty);
+      expect(data.messageList, isEmpty);
+    });
+
+    test('userInfo / allmsgs 为字符串变型时按无数据处理', () {
+      final data = MessageListData.fromJson({
+        'userInfo': 'oops',
+        'allmsgs': 'oops',
+      });
+      expect(data.userList, isEmpty);
+      expect(data.messageList, isEmpty);
+    });
+
+    test('元素值非 Map 时逐条跳过，不让整页失败', () {
+      final data = MessageListData.fromJson({
+        'userInfo': {
+          '100': {'uid': 100, 'username': 'alice'},
+          '200': 'garbage',
+        },
+        'allmsgs': {
+          '0': {'id': 1, 'content': 'ok', 'from': 100},
+          '1': 'garbage',
+        },
+      });
+
+      expect(data.userList.map((u) => u.uid), [100]);
+      expect(data.messageList, hasLength(1));
+      expect(data.messageList.first.content, 'ok');
+    });
   });
 
   group('参与者与位标志', () {
