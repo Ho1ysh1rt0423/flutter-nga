@@ -53,7 +53,7 @@ class FavouriteTopicListPage extends HookConsumerWidget {
       }
     }
 
-    useInitialRefresh(refreshController);
+    useInitialRefresh(refreshController, onRefresh);
 
     final messenger = ScaffoldMessenger.of(context);
 

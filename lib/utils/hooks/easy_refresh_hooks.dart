@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -17,16 +19,19 @@ void usePostFrameEffect(VoidCallback effect, [List<Object?> keys = const []]) {
   }, keys);
 }
 
-/// Triggers header refresh after the first frame so the indicator is visible.
+/// 首次加载时触发刷新。
 ///
-/// Prefer this over calling `onRefresh` directly on first load; a bare
-/// `onRefresh` finishes the task without ever entering the refreshing state.
+/// 不能只用 [EasyRefreshController.callRefresh]：空列表没有可滚动空间，
+/// 它把 header 推到 ready 后无法靠滚动推进到 processing，`onRefresh`
+/// 不会被调用 —— 表现就是「进版块转一下圈，圈没了列表空白，要手动刷新」。
+/// 所以首刷直接调用回调本身（后续用户下拉仍走 EasyRefresh 的转圈流程）。
 void useInitialRefresh(
-  EasyRefreshController controller, [
+  EasyRefreshController controller,
+  Future<void> Function() onRefresh, [
   List<Object?> keys = const [],
 ]) {
   usePostFrameEffect(() {
-    controller.callRefresh();
+    unawaited(onRefresh());
   }, keys);
 }
 

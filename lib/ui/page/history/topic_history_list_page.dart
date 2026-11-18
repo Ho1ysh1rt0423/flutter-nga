@@ -49,7 +49,7 @@ class TopicHistoryListPage extends HookConsumerWidget {
       }
     }
 
-    useInitialRefresh(refreshController);
+    useInitialRefresh(refreshController, onRefresh);
 
     return Scaffold(
       appBar: AppBar(

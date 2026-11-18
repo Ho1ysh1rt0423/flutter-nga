@@ -36,7 +36,7 @@ class SearchForumPage extends HookConsumerWidget {
       }
     }
 
-    useInitialRefresh(refreshController);
+    useInitialRefresh(refreshController, onRefresh);
 
     return Scaffold(
       appBar: AppBar(title: Text("搜索板块:$keyword")),
