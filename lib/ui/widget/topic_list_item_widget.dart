@@ -86,16 +86,16 @@ class TopicListItemWidget extends ConsumerWidget {
                       isRead: isRead,
                     ),
 
-                  // 配图（最多 3 张，对齐 NGA 原版）
-                  if (topic.attachmentUrls.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    _buildAttachmentPreview(context, topic.attachmentUrls),
-                  ] else if (topic.hasAttachment()) ...[
-                    // 列表接口没给 attachs（服务端按版块下发），退化为请求主楼首图
-                    _buildLazyThumbnail(context, ref, topic),
-                  ],
+                    // 配图（最多 3 张，对齐 NGA 原版）
+                    if (topic.attachmentUrls.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _buildAttachmentPreview(context, topic.attachmentUrls),
+                    ] else if (topic.hasAttachment()) ...[
+                      // 列表接口没给 attachs（服务端按版块下发），退化为请求主楼首图
+                      _buildLazyThumbnail(context, ref, topic),
+                    ],
 
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 8),
 
                     // 元信息行
                     _buildMetaRow(context, colorScheme, textTheme),
@@ -235,11 +235,7 @@ class TopicListItemWidget extends ConsumerWidget {
   /// 服务端没给列表 `attachs` 时的兜底：异步取主楼配图（最多 3 张）。
   ///
   /// 加载中、没图、请求失败都返回空 —— 列表不留占位，避免滚动时布局跳动。
-  Widget _buildLazyThumbnail(
-    BuildContext context,
-    WidgetRef ref,
-    Topic topic,
-  ) {
+  Widget _buildLazyThumbnail(BuildContext context, WidgetRef ref, Topic topic) {
     final tid = topic.tid;
     if (tid == null) return const SizedBox.shrink();
     final async = ref.watch(topicHeadThumbnailProvider(tid));

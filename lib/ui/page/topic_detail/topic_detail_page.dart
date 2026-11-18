@@ -163,9 +163,7 @@ class TopicDetailPage extends HookConsumerWidget {
       // 只有横向占比明显大的滑动才轮到翻页。
       body: MediaQuery(
         data: MediaQuery.of(context).copyWith(
-          gestureSettings: DeviceGestureSettings(
-            touchSlop: kPageFlipTouchSlop,
-          ),
+          gestureSettings: DeviceGestureSettings(touchSlop: kPageFlipTouchSlop),
         ),
         child: TabBarView(controller: tabController, children: widgets),
       ),
