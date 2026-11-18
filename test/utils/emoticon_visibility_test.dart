@@ -7,11 +7,7 @@ import 'package:flutter_nga/utils/emoticon_visibility.dart';
 /// 生成 [width]x[height] 的 RGBA 像素数据。
 ///
 /// [pixel] 返回 `0xRRGGBBAA` 形式的颜色（alpha 在最低字节）。
-Uint8List _rgba(
-  int width,
-  int height,
-  int Function(int index) pixel,
-) {
+Uint8List _rgba(int width, int height, int Function(int index) pixel) {
   final data = Uint8List(width * height * 4);
   for (var i = 0; i < width * height; i++) {
     final color = pixel(i);
@@ -36,11 +32,7 @@ void main() {
 
     test('does not flag opaque colorful emoticon (smile.gif style)', () {
       // 80% 不透明、黄色为主的圆脸
-      final data = _rgba(
-        10,
-        10,
-        (i) => i % 10 < 8 ? 0xF0D040FF : 0x00000000,
-      );
+      final data = _rgba(10, 10, (i) => i % 10 < 8 ? 0xF0D040FF : 0x00000000);
       expect(
         EmoticonVisibility.needsInvertInDark(data, width: 10, height: 10),
         isFalse,

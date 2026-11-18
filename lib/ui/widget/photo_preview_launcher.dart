@@ -11,12 +11,8 @@ Future<void> openPhotoPreview(BuildContext context, String? url) {
   if (trimmed.isEmpty) return Future.value();
 
   final screenWidth = MediaQuery.sizeOf(context).width;
-  return Routes.navigateToWithParams(
-    context,
-    Routes.PHOTO_PREVIEW,
-    {
-      'url': trimmed,
-      'screenWidth': screenWidth.toStringAsFixed(2),
-    },
-  );
+  return Routes.navigateToWithParams(context, Routes.PHOTO_PREVIEW, {
+    'url': trimmed,
+    'screenWidth': screenWidth.toStringAsFixed(2),
+  });
 }

@@ -89,9 +89,10 @@ void main() {
     final third = queue.fetch(7);
     gate.complete();
 
-    expect(await Future.wait([first, second, third]), everyElement([
-      'https://img.nga.cn/7.jpg',
-    ]));
+    expect(
+      await Future.wait([first, second, third]),
+      everyElement(['https://img.nga.cn/7.jpg']),
+    );
     expect(calls, 1);
   });
 
@@ -125,8 +126,7 @@ void main() {
     expect(calls, 0, reason: '重启后不再为已有结果的帖子发请求');
   });
 
-  test('successful results are written back to the persistent layer',
-      () async {
+  test('successful results are written back to the persistent layer', () async {
     final persisted = <int, List<String>>{};
     var calls = 0;
     final queue = TopicHeadThumbnailQueue(
@@ -176,8 +176,7 @@ void main() {
     );
 
     await queue.fetch(7);
-    expect(persisted, isEmpty,
-        reason: '「主楼没图」可能是后续编辑加了图，重启后再确认一次');
+    expect(persisted, isEmpty, reason: '「主楼没图」可能是后续编辑加了图，重启后再确认一次');
   });
 
   test('a broken persistent layer does not break fetching', () async {

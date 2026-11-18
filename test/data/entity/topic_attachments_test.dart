@@ -9,21 +9,10 @@ void main() {
           'attachurl': 'mon_202611/17/-570ynQ48-kv6dZ15T3cSqo-zk.jpg',
           'type': 'img',
         },
-        '1': {
-          'attachurl': './mon_202611/17/abc-ro.jpg',
-          'type': 'img',
-        },
-        '2': {
-          'attachurl': 'mon_202611/17/c.webp',
-        },
-        '3': {
-          'attachurl': 'mon_202611/17/d.jpg',
-          'type': 'img',
-        },
-        '4': {
-          'attachurl': 'mon_202611/17/e.jpg',
-          'type': 'img',
-        },
+        '1': {'attachurl': './mon_202611/17/abc-ro.jpg', 'type': 'img'},
+        '2': {'attachurl': 'mon_202611/17/c.webp'},
+        '3': {'attachurl': 'mon_202611/17/d.jpg', 'type': 'img'},
+        '4': {'attachurl': 'mon_202611/17/e.jpg', 'type': 'img'},
       });
       expect(urls, hasLength(Topic.maxListAttachmentCount));
       expect(
@@ -34,10 +23,7 @@ void main() {
         urls[1],
         'https://img.nga.cn/attachments/mon_202611/17/abc-ro.jpg',
       );
-      expect(
-        urls[2],
-        'https://img.nga.cn/attachments/mon_202611/17/c.webp',
-      );
+      expect(urls[2], 'https://img.nga.cn/attachments/mon_202611/17/c.webp');
     });
 
     test('skips non-image attachments', () {
@@ -45,9 +31,7 @@ void main() {
         '0': {'attachurl': 'mon_202611/17/doc.pdf', 'type': 'pdf'},
         '1': {'attachurl': 'mon_202611/17/x.jpg', 'type': 'img'},
       });
-      expect(urls, [
-        'https://img.nga.cn/attachments/mon_202611/17/x.jpg',
-      ]);
+      expect(urls, ['https://img.nga.cn/attachments/mon_202611/17/x.jpg']);
     });
 
     test('returns empty for missing or malformed attachs', () {

@@ -25,7 +25,9 @@ void main() {
   test('truncated data without overview fields stays parseable', () {
     // 截断抢救出的数据：楼层完整，但 __ROWS / __R__ROWS_PAGE 在截断点之后，
     // 全部缺失。之前直接 `map["__ROWS"]` 赋给 int 字段会抛 TypeError。
-    final map = fullDetail()..remove('__ROWS')..remove('__R__ROWS_PAGE');
+    final map = fullDetail()
+      ..remove('__ROWS')
+      ..remove('__R__ROWS_PAGE');
     final data = TopicDetailData.fromJson(map, truncated: true);
 
     expect(data.truncated, isTrue);
@@ -55,11 +57,19 @@ void main() {
   });
 
   test('truncated or zero overview fields make maxPage fall back to 1', () {
-    final map = fullDetail()..remove('__ROWS')..remove('__R__ROWS_PAGE');
-    expect(TopicDetailData.fromJson(map, truncated: true).maxPage, 1,
-        reason: '页数不可信时回退为当前页，禁用向后翻页');
-    expect(TopicDetailData.fromJson(map, truncated: false).maxPage, 1,
-        reason: '总览字段为 0 时同样无页可算，避免除零抛异常');
+    final map = fullDetail()
+      ..remove('__ROWS')
+      ..remove('__R__ROWS_PAGE');
+    expect(
+      TopicDetailData.fromJson(map, truncated: true).maxPage,
+      1,
+      reason: '页数不可信时回退为当前页，禁用向后翻页',
+    );
+    expect(
+      TopicDetailData.fromJson(map, truncated: false).maxPage,
+      1,
+      reason: '总览字段为 0 时同样无页可算，避免除零抛异常',
+    );
   });
 
   test('non-integer overview values are tolerated', () {
