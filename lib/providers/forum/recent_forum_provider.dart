@@ -30,6 +30,7 @@ class RecentForumState {
 /// 只需要记一笔，不能因为读设置而拖慢页面跳转。
 class RecentForumNotifier extends Notifier<RecentForumState> {
   bool _writeScheduled = false;
+  Future<void>? _loadFuture;
 
   @override
   RecentForumState build() {
@@ -37,7 +38,10 @@ class RecentForumNotifier extends Notifier<RecentForumState> {
     return const RecentForumState();
   }
 
-  Future<void> _load() async {
+  /// 首载去重：并发调用（record 先于首载完成触发时也会等它）共用一个 Future。
+  Future<void> _load() => _loadFuture ??= _loadNow();
+
+  Future<void> _loadNow() async {
     try {
       final prefs = await AppPreferences.instance();
       final raw = prefs.getString(PrefsKeys.visitedForums);
@@ -72,7 +76,11 @@ class RecentForumNotifier extends Notifier<RecentForumState> {
   }
 
   /// 记一次访问。同一个版块只保留最新一条，超出上限的旧记录丢弃。
-  void record(Forum forum) {
+  ///
+  /// 极端情况下本方法可能先于首载完成（首载读设置是异步的）：先等首载，
+  /// 否则基于空状态计算出的新列表会把持久化的旧记录整个顶掉。
+  Future<void> record(Forum forum) async {
+    if (!state.isLoaded) await _load();
     final identity = forum.identity;
     final next = [
       RecentForum(
