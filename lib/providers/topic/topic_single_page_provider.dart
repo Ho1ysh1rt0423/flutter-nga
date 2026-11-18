@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter_nga/data/entity/topic.dart';
 import 'package:flutter_nga/data/entity/topic_detail.dart';
 import 'package:flutter_nga/data/entity/user.dart';
+import 'package:flutter_nga/data/repository/topic_repository.dart';
 import 'package:flutter_nga/providers/core/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -108,10 +110,15 @@ class TopicSinglePageNotifier extends Notifier<TopicSinglePageState> {
   TopicSinglePageNotifier(this.key);
   final TopicSinglePageKey key;
 
+  /// 每次 refresh 自增；热评异步回填时用它判断「这批复写是否还属于当前页」，
+  /// 避免上一轮的慢请求把新一轮的楼层盖掉。
+  int _generation = 0;
+
   @override
   TopicSinglePageState build() => TopicSinglePageState.initial();
 
   Future<TopicSinglePageState> refresh() async {
+    final generation = ++_generation;
     try {
       final repository = ref.read(topicRepositoryProvider);
       final data = await repository.getTopicDetail(
@@ -129,24 +136,9 @@ class TopicSinglePageNotifier extends Notifier<TopicSinglePageState> {
       Set<Group> groups = data.groupList.values.toSet();
       Set<Medal> medals = data.medalList.values.toSet();
 
-      List<Reply> hotReplyList = [];
-      if (key.page == 1 && data.hotReplies.isNotEmpty && key.authorid == null) {
-        try {
-          List<dynamic> hots = await Future.wait(
-            data.hotReplies.map((e) => repository.getTopicReplies(e)),
-          );
-          for (var e in hots) {
-            userList.addAll(e.userList.values);
-            groups.addAll(e.groupList.values);
-            medals.addAll(e.medalList.values);
-            hotReplyList.addAll(e.replyList.values);
-          }
-        } catch (_) {
-          // 热评加载失败时降级为不显示热评区，不阻塞主列表
-          hotReplyList = [];
-        }
-      }
-
+      // 正文先落地再取热评：热评是「精选区块」，每个 pid 一个请求，遇到
+      // 服务端截断还要走 0.9s/2.5s 的重试等待，串在首屏前会把打开帖子的
+      // 时间从一次请求拖成 N+1 次（用户看到的就是长时间转圈）。
       state = TopicSinglePageState(
         page: 1,
         // 截断抢救的数据页数/总楼数不可信（entity 的 maxPage 已回退为 1）。
@@ -159,23 +151,65 @@ class TopicSinglePageNotifier extends Notifier<TopicSinglePageState> {
         maxFloor: data.truncated
             ? replyList.fold<int>(
                 0,
-                (max, reply) =>
-                    (reply.lou ?? 0) > max ? (reply.lou ?? 0) : max,
+                (max, reply) => (reply.lou ?? 0) > max ? (reply.lou ?? 0) : max,
               )
             : data.rows,
         enablePullUp: 1 < data.maxPage,
         truncated: data.truncated,
         topic: data.topic,
         replyList: replyList,
-        hotReplyList: hotReplyList,
         userList: userList,
         groupSet: groups,
         medalSet: medals,
       );
+
+      if (key.page == 1 && data.hotReplies.isNotEmpty && key.authorid == null) {
+        unawaited(
+          _loadHotReplies(repository, data.hotReplies, generation: generation),
+        );
+      }
       return state;
     } catch (err) {
       rethrow;
     }
+  }
+
+  /// 后台拉热评，回来后把热评楼层与它们带来的用户/等级/勋章并进当前状态。
+  ///
+  /// 失败只降级为「没有热评区」，不影响已经渲染的正文。
+  Future<void> _loadHotReplies(
+    TopicRepository repository,
+    List<int> pids, {
+    required int generation,
+  }) async {
+    final List<TopicDetailData> hots;
+    try {
+      hots = await Future.wait(pids.map((e) => repository.getTopicReplies(e)));
+    } catch (_) {
+      return;
+    }
+    // 期间发生过刷新、页面已销毁，或用户已滑走：丢弃这批结果。
+    if (generation != _generation || !ref.mounted) return;
+
+    final current = state;
+    final userList = [...current.userList];
+    final groups = {...current.groupSet};
+    final medals = {...current.medalSet};
+    final hotReplyList = <Reply>[];
+    for (final package in hots) {
+      userList.addAll(package.userList.values);
+      groups.addAll(package.groupList.values);
+      medals.addAll(package.medalList.values);
+      hotReplyList.addAll(package.replyList.values);
+    }
+    if (hotReplyList.isEmpty) return;
+
+    state = current.copyWith(
+      hotReplyList: hotReplyList,
+      userList: userList,
+      groupSet: groups,
+      medalSet: medals,
+    );
   }
 }
 

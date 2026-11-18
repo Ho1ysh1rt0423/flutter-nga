@@ -52,7 +52,9 @@ class TopicSinglePage extends HookConsumerWidget {
       refreshing.value = true;
       try {
         replyWidgetCache.value.clear();
-        final notifier = ref.read(topicSinglePageProvider(providerKey).notifier);
+        final notifier = ref.read(
+          topicSinglePageProvider(providerKey).notifier,
+        );
         final next = await notifier.refresh();
         if (!context.mounted) return;
 
@@ -77,10 +79,17 @@ class TopicSinglePage extends HookConsumerWidget {
     // 详情页把整块 TabBarView 的触摸斜率提到了 kPageFlipTouchSlop（翻页
     // 防误触）；列表的竖向滚动不该被波及，这里恢复默认斜率 —— 竞技场里
     // 列表层次更深、斜率更小，斜滑优先滚动而不是翻页。
+    //
+    // 「Reply to」引用的同页正文缓存按 state 记忆：原先在 itemBuilder 里
+    // 每个楼层都算一遍全页摘要（每层都要跑一次正则剥 quote），20 楼的帖子
+    // 就是 400 次解析，打开正文时明显拖慢首帧。
+    final quoteBodyByPid = useMemoized(() => _quoteBodyCacheFor(state), [
+      state.replyList,
+      state.hotReplyList,
+    ]);
     return MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(gestureSettings: DeviceGestureSettings(touchSlop: null)),
+      data: MediaQuery.of(context)
+          .copyWith(gestureSettings: DeviceGestureSettings(touchSlop: null)),
       child: EasyRefresh(
         controller: refreshController,
         refreshOnStart: state.replyList.isEmpty,
@@ -89,7 +98,7 @@ class TopicSinglePage extends HookConsumerWidget {
           children: [
             if (state.truncated) _buildTruncatedBanner(context, onRefresh),
             Expanded(
-              // 大屏下楼层列表收窄居中；截断横幅仍在全宽顶部
+// 大屏下楼层列表收窄居中；截断横幅仍在全宽顶部
               child: ReadableListPadding(
                 builder: (context, padding) => ListView.builder(
                   padding: padding,
@@ -100,6 +109,7 @@ class TopicSinglePage extends HookConsumerWidget {
                     state,
                     blockFilter,
                     replyWidgetCache.value,
+                    quoteBodyByPid,
                   ),
                 ),
               ),
@@ -130,16 +140,12 @@ class TopicSinglePage extends HookConsumerWidget {
               Expanded(
                 child: Text(
                   '服务端返回的数据不完整，当前仅显示已加载的楼层；稍后下拉刷新可恢复',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ),
               const SizedBox(width: 8),
-              TextButton(
-                onPressed: onRefresh,
-                child: const Text('重试'),
-              ),
+              TextButton(onPressed: onRefresh, child: const Text('重试')),
             ],
           ),
         ),
@@ -153,9 +159,9 @@ class TopicSinglePage extends HookConsumerWidget {
     TopicSinglePageState state,
     BlockFilter blockFilter,
     Map<String, Widget> replyWidgetCache,
+    Map<int, String> quoteBodyByPid,
   ) {
     final reply = state.replyList[position];
-    final quoteBodyByPid = _quoteBodyCacheFor(state);
     // 热点回复是精选区块，被屏蔽的直接移除而不是按屏蔽模式展示
     final hotReplies = position == 0 && page == 1
         ? state.hotReplyList
