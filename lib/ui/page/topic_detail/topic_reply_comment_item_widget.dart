@@ -64,6 +64,7 @@ class TopicReplyCommentItemWidget extends StatelessWidget {
               pid: reply.pid,
               postDateTimestamp: reply.postDateTimestamp,
               textDecoration: textDecoration,
+              selectable: true,
             ),
           ),
         ],

@@ -142,6 +142,7 @@ class _HotReplyItemCardState extends State<_HotReplyItemCard> {
       pid: reply.pid,
       postDateTimestamp: reply.postDateTimestamp,
       quoteBodyByPid: widget.quoteBodyByPid,
+      selectable: true,
     );
 
     return Padding(
