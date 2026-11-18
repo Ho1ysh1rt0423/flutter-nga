@@ -83,8 +83,7 @@ class _NgaEmoticonImageState extends State<NgaEmoticonImage> {
         throw StateError('表情图片数据为空');
       }
       _bytesCache[widget.url] = bytes;
-      final invert =
-          await EmoticonVisibility.needsInvertInDarkForBytes(bytes);
+      final invert = await EmoticonVisibility.needsInvertInDarkForBytes(bytes);
       _invertCache[widget.url] = invert;
       if (mounted) {
         setState(() {

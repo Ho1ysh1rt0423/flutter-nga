@@ -22,8 +22,7 @@ void main() {
     });
 
     test('leaves already-thumbnailed urls alone', () {
-      const url =
-          'https://img.nga.cn/attachments/mon_xxx.jpg.thumb.jpg';
+      const url = 'https://img.nga.cn/attachments/mon_xxx.jpg.thumb.jpg';
       expect(picture_utils.getThumbUrl(url), url);
     });
 

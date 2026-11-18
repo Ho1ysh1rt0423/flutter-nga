@@ -133,9 +133,7 @@ class TopicDetailData {
       replyPageRows: _asInt(map["__R__ROWS_PAGE"]),
       rows: _asInt(map["__ROWS"]),
       truncated: truncated,
-      topic: topicInfoMap.isEmpty
-          ? null
-          : Topic.fromJson(topicInfoMap),
+      topic: topicInfoMap.isEmpty ? null : Topic.fromJson(topicInfoMap),
       hotReplies: hotReplies,
     );
   }

@@ -132,11 +132,10 @@ class NgaDioConfigurator {
           final repairedPayload = repairedMap == null
               ? null
               : (repairedMap.containsKey("data")
-                  ? repairedMap["data"]
-                  : repairedMap);
+                    ? repairedMap["data"]
+                    : repairedMap);
           if (repairedPayload is Map<String, dynamic>) {
-            debugPrint(
-                '[json] 响应被截断，已抢救出完整部分: ${response.requestOptions.uri}');
+            debugPrint('[json] 响应被截断，已抢救出完整部分: ${response.requestOptions.uri}');
             response.requestOptions.extra[truncatedRepairedKey] = true;
             response.data = repairedPayload;
             handler.next(response);
@@ -148,11 +147,13 @@ class NgaDioConfigurator {
         // 转型处抛 "type 'String' is not a subtype of type
         // 'Map<String, dynamic>?'"，用户看到的是一句天书。这里主动 reject
         // 成可读错误。
-        handler.reject(DioException(
-          requestOptions: response.requestOptions,
-          error: 'NGA 服务端返回的数据不完整（常见于新帖或热门帖），稍等片刻下拉刷新即可',
-          type: DioExceptionType.badResponse,
-        ));
+        handler.reject(
+          DioException(
+            requestOptions: response.requestOptions,
+            error: 'NGA 服务端返回的数据不完整（常见于新帖或热门帖），稍等片刻下拉刷新即可',
+            type: DioExceptionType.badResponse,
+          ),
+        );
         return;
       }
       // 非 JSON（如 post.php 的 HTML 结果页）保持原样，供 Response<String> 使用
@@ -176,11 +177,13 @@ class NgaDioConfigurator {
     if (payload is Map<String, dynamic>) {
       response.data = payload;
     } else if (payload is String && payload.isNotEmpty) {
-      handler.reject(DioException(
-        requestOptions: response.requestOptions,
-        error: payload,
-        type: DioExceptionType.unknown,
-      ));
+      handler.reject(
+        DioException(
+          requestOptions: response.requestOptions,
+          error: payload,
+          type: DioExceptionType.unknown,
+        ),
+      );
       return;
     } else {
       response.data = map;
@@ -245,7 +248,8 @@ class NgaDioConfigurator {
 
     final attempt = (options.extra[truncationRetryKey] as int?) ?? 0;
     final maxRetries =
-        (options.extra[truncationMaxRetriesKey] as int?) ?? maxTruncationRetries;
+        (options.extra[truncationMaxRetriesKey] as int?) ??
+        maxTruncationRetries;
     if (attempt >= maxRetries) return false;
 
     // 重试前等一等。实测（2026-11-17）这类截断**不是** CDN 边缘缓存问题：
@@ -259,8 +263,7 @@ class NgaDioConfigurator {
     final nextExtra = Map<String, dynamic>.from(options.extra)
       ..[truncationRetryKey] = attempt + 1;
     final next = options.copyWith(extra: nextExtra);
-    debugPrint(
-        '[json] 响应被截断，重试 ${attempt + 1}/$maxRetries: ${options.uri}');
+    debugPrint('[json] 响应被截断，重试 ${attempt + 1}/$maxRetries: ${options.uri}');
 
     try {
       final retried = await dio.fetch<dynamic>(next);
@@ -303,7 +306,8 @@ class NgaDioConfigurator {
     debugPrint('[json] 头部: $head');
     if (responseBody.length > previewLength) {
       debugPrint(
-          '[json] 尾部: ${responseBody.substring(responseBody.length - previewLength)}');
+        '[json] 尾部: ${responseBody.substring(responseBody.length - previewLength)}',
+      );
     }
     return null;
   }
