@@ -98,7 +98,13 @@ class _AccountManagementState extends ConsumerState<AccountManagementPage>
   }
 
   void _quitAll(AccountListNotifier notifier) async {
-    await notifier.quitAll();
+    try {
+      await notifier.quitAll();
+    } catch (err) {
+      if (!mounted) return;
+      AppToast.error(err);
+      return;
+    }
     AppToast.success("成功");
     if (mounted) {
       Routes.navigateTo(context, Routes.HOME, clearStack: true);
@@ -106,7 +112,15 @@ class _AccountManagementState extends ConsumerState<AccountManagementPage>
   }
 
   void _setDefault(AccountListNotifier notifier, CacheUser user) {
-    notifier.setDefault(user).then((_) => _refreshController.callRefresh());
+    // 失败静默吞掉会变成无人接的异步错误；至少提示用户切换没生效。
+    notifier
+        .setDefault(user)
+        .then((_) {
+          _refreshController.callRefresh();
+        })
+        .catchError((Object err) {
+          if (mounted) AppToast.error(err);
+        });
   }
 
   /// 删除只移除本机保存的登录信息，不会让服务端会话失效，所以文案不说「退出登录」。
