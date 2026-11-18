@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter_nga/data/entity/user.dart';
+import 'package:flutter_nga/utils/json_cast.dart';
 
 int? _parseInt(dynamic value) {
   if (value is int) {
@@ -165,21 +166,32 @@ class MessageListData {
 
   factory MessageListData.fromJson(Map map) {
     dynamic nextPage = map['nextPage'];
-    Map userMap = map['userInfo'] ?? {};
-    List<User> userList = userMap.entries
-        .where((e) => int.tryParse(e.key) != null)
-        .map((e) => User.fromJson(e.value))
+    // 服务端把空关联数组编码成 `[]`（翻到无消息的页等场景），userInfo /
+    // allmsgs 缺失或变型都按「无数据」处理，元素非 Map 逐条跳过，
+    // 不让一个字段把整页消息打崩。
+    final userMap = asJsonMapOrEmpty(
+      map['userInfo'],
+      'MessageListData.userInfo',
+    );
+    final List<User> userList = userMap.entries
+        .where((e) => int.tryParse(e.key) != null && e.value is Map)
+        .map((e) => User.fromJson(Map<String, dynamic>.from(e.value)))
         .toList();
     // 消息数据在 allmsgs 字段中
-    Map allMsgsMap = map['allmsgs'] ?? {};
-    List<Message> messageList = allMsgsMap.entries
-        .where((e) => int.tryParse(e.key) != null)
-        .map((e) => Message.fromJson(e.value, userList))
+    final allMsgsMap = asJsonMapOrEmpty(
+      map['allmsgs'],
+      'MessageListData.allmsgs',
+    );
+    final List<Message> messageList = allMsgsMap.entries
+        .where((e) => int.tryParse(e.key) != null && e.value is Map)
+        .map(
+          (e) => Message.fromJson(Map<String, dynamic>.from(e.value), userList),
+        )
         .toList();
     // 与网页版一致：顶层没有 allUsers 时取第一条消息的 data[2]
     var participants = parseMessageParticipants(map['allUsers']);
     if (participants.isEmpty) {
-      final first = allMsgsMap['0'] ?? allMsgsMap[0];
+      final first = allMsgsMap['0'];
       if (first is Map) {
         participants = parseMessageParticipants(_dataAt(first['data'], 2));
       }

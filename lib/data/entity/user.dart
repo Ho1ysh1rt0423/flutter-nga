@@ -62,7 +62,9 @@ class User {
             }
           }
         }
-        avatar = avatarList[0];
+        // "l" 缺失/非 int 时 avatarList 为空，直接取 [0] 会 RangeError
+        // 打崩整页消息解析；置 null 由 AvatarWidget 回退默认图标。
+        avatar = avatarList.isNotEmpty ? avatarList[0] : null;
       }
     }
     return User(
