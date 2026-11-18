@@ -5,7 +5,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_nga/providers/settings/interface_settings_provider.dart';
 import 'package:flutter_nga/ui/widget/collapse_widget.dart';
 import 'package:flutter_nga/ui/widget/nga_emoticon_image.dart';
-import 'package:flutter_nga/ui/widget/photo_preview_launcher.dart';
 import 'package:flutter_nga/ui/widget/username_text.dart';
 import 'package:flutter_nga/utils/parser/content_parser.dart';
 import 'package:flutter_nga/utils/parser/nga_crypt.dart';
@@ -27,7 +26,6 @@ class NgaHtml extends StatelessWidget {
     super.key,
     this.textStyle,
     this.decorateBlocks = true,
-    this.enableImageTap = false,
     this.emoticonSize = InterfaceSettingsState.defaultEmoticonSize,
     this.selectable = false,
   });
@@ -39,10 +37,6 @@ class NgaHtml extends StatelessWidget {
 
   /// 是否给引用块 / 表格加背景与边框（帖子正文开启，评论沿用默认外观）。
   final bool decorateBlocks;
-
-  /// 为 true 时（帖子正文），点击 `<img>` 打开图片预览页；评论等小图场景
-  /// 保持 false，避免误触。
-  final bool enableImageTap;
 
   /// 表情显示边长，来自界面设置的「表情大小」。
   final double emoticonSize;
@@ -137,12 +131,10 @@ class NgaHtml extends StatelessWidget {
         Routes.onLinkTap(context, url);
         return true;
       },
-      onTapImage: enableImageTap
-          ? (image) => openPhotoPreview(
-              context,
-              image.sources.isNotEmpty ? image.sources.first.url : null,
-            )
-          : null,
+      // 图片预览不在这里接：NgaHtmlWidgetFactory.buildImage 已按
+      // 「链接内图片保留链接跳转、其余进预览」统一处理（上游 #36）。
+      // 曾用 onTapImage 接过——它会给所有图片挂手势，链接内的图片点击
+      // 被它劫持进预览而不是打开链接，rebase 后不要改回去。
     );
 
     if (!selectable) return htmlWidget;
