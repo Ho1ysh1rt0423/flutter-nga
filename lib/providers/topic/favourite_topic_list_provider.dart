@@ -60,6 +60,13 @@ class FavouriteTopicListNotifier extends Notifier<FavouriteTopicListState> {
   /// 刷新结果会把条目带回来，之后删除成功也不会再移除。
   final _inFlight = <Future<void>>{};
 
+  /// 本地已删除、尚未确认「服务端也删掉了」的 tid → 提交时间（null = 未提交）。
+  ///
+  /// 刷新/翻页的取数与删除并发时，取回的是删除前的快照，直接整表覆盖会让
+  /// 已删条目复活。组装新列表时按这里过滤；提交时间早于取数开始的条目由
+  /// 服务端确认已删（或用户重新收藏后服务端重新返回），从集合清理放行。
+  final _hiddenTids = <int, DateTime?>{};
+
   @override
   FavouriteTopicListState build() => FavouriteTopicListState.initial();
 
@@ -72,13 +79,17 @@ class FavouriteTopicListNotifier extends Notifier<FavouriteTopicListState> {
     final index = state.list.indexWhere((t) => t.tid == tid);
     if (index < 0) return;
     _pending[tid] = _PendingDeletion(topic, index);
+    _hiddenTids[tid] = null;
     state = state.copyWith(list: [...state.list]..removeAt(index));
   }
 
   /// 撤销删除：按原位置插回。
   void undoDeletion(int tid) {
     final pending = _pending.remove(tid);
-    if (pending != null) _restore(pending);
+    if (pending != null) {
+      _hiddenTids.remove(tid);
+      _restore(pending);
+    }
   }
 
   /// 提交删除到服务端；失败时插回列表并抛出错误。已提交或已撤销时返回 null。
@@ -92,9 +103,14 @@ class FavouriteTopicListNotifier extends Notifier<FavouriteTopicListState> {
     final tracked = request.then<void>((_) {}, onError: (_) {});
     _inFlight.add(tracked);
     try {
-      return await request;
+      final message = await request;
+      _hiddenTids[tid] = DateTime.now();
+      return message;
     } catch (err) {
-      if (ref.mounted) _restore(pending);
+      if (ref.mounted) {
+        _restore(pending);
+        _hiddenTids.remove(tid);
+      }
       rethrow;
     } finally {
       _inFlight.remove(tracked);
@@ -129,19 +145,36 @@ class FavouriteTopicListNotifier extends Notifier<FavouriteTopicListState> {
     if (err != null) debugPrint('提交收藏删除失败: $err');
   }
 
+  /// 清理「提交不晚于本次取数开始」的隐藏 tid：服务端已确认删除（取回的
+  /// 数据里不会再有；若因重新收藏重新返回，也会在本过滤放行后自然清理）。
+  /// 用「不晚于」而非「早于」：测试与极快操作里两个时间戳可能同毫秒。
+  void _pruneConfirmedGone(DateTime fetchStartedAt) {
+    _hiddenTids.removeWhere(
+      (tid, committedAt) =>
+          committedAt != null && !committedAt.isAfter(fetchStartedAt),
+    );
+  }
+
   Future<FavouriteTopicListState> refresh() async {
     await _flushBeforeLoading();
     state = state.copyWith(isLoading: true);
+    final fetchStartedAt = DateTime.now();
     try {
       TopicListData data = await ref
           .read(topicRepositoryProvider)
           .getFavouriteTopicList(1);
+      // 取数期间用户仍可删条目：先提交并等在途请求结束，再按隐藏集过滤
+      // 删除前的快照，已删条目不复活。
+      await _flushBeforeLoading();
+      _pruneConfirmedGone(fetchStartedAt);
       state = FavouriteTopicListState(
         size: data.topicRows,
         page: 1,
         maxPage: data.maxPage,
         enablePullUp: 1 < data.maxPage,
-        list: data.topicList.values.toList(),
+        list: data.topicList.values
+            .where((t) => !_hiddenTids.containsKey(t.tid))
+            .toList(),
         isLoading: false,
       );
       return state;
@@ -155,20 +188,27 @@ class FavouriteTopicListNotifier extends Notifier<FavouriteTopicListState> {
     if (state.isLoading) return state;
     await _flushBeforeLoading();
     state = state.copyWith(isLoading: true);
+    final fetchStartedAt = DateTime.now();
     try {
       TopicListData data = await ref
           .read(topicRepositoryProvider)
           .getFavouriteTopicList(state.page + 1);
+      await _flushBeforeLoading();
+      _pruneConfirmedGone(fetchStartedAt);
       final loadedTids = {for (final t in state.list) t.tid};
       state = FavouriteTopicListState(
         size: data.topicRows,
         page: state.page + 1,
         maxPage: data.maxPage,
         enablePullUp: state.page + 1 < data.maxPage,
-        // 删除后服务端分页前移，下一页可能与已加载内容重叠，按 tid 去重
+        // 删除后服务端分页前移，下一页可能与已加载内容重叠：
+        // 按 tid 去重，且用户已删（含取数期间删的）条目不放回。
         list: [
           ...state.list,
-          ...data.topicList.values.where((t) => !loadedTids.contains(t.tid)),
+          ...data.topicList.values.where(
+            (t) =>
+                !loadedTids.contains(t.tid) && !_hiddenTids.containsKey(t.tid),
+          ),
         ],
         isLoading: false,
       );

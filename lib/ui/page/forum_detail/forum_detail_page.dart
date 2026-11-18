@@ -77,7 +77,7 @@ class ForumDetailPage extends HookConsumerWidget {
       try {
         final next = await notifier.loadMore(false, type);
         if (!context.mounted) return;
-        if (next.page + 1 < next.maxPage) {
+        if (next.page < next.maxPage) {
           refreshController.finishLoad();
         } else {
           refreshController.finishLoad(IndicatorResult.noMore);
