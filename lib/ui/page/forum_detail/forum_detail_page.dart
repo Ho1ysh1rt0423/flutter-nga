@@ -89,7 +89,7 @@ class ForumDetailPage extends HookConsumerWidget {
       }
     }
 
-    useInitialRefresh(refreshController);
+    useInitialRefresh(refreshController, onRefresh);
     useAutoLoadWhenAllFiltered(
       refreshController,
       rawItems: state.list,

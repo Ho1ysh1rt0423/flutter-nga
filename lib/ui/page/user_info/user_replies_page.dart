@@ -54,7 +54,7 @@ class UserRepliesPage extends HookConsumerWidget {
       }
     }
 
-    useInitialRefresh(refreshController);
+    useInitialRefresh(refreshController, onRefresh);
 
     return Scaffold(
       appBar: AppBar(title: Text("$username发布的回复")),

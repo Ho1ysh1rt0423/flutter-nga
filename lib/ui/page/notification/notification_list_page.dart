@@ -48,7 +48,7 @@ class NotificationListPage extends HookConsumerWidget {
       }
     }
 
-    useInitialRefresh(refreshController);
+    useInitialRefresh(refreshController, onRefresh);
 
     final entries = <Object>[
       for (final section in state.sections) ...[section.key, ...section.value],

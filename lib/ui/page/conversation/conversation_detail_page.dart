@@ -115,7 +115,7 @@ class ConversationDetailPage extends HookConsumerWidget {
       }
     }
 
-    useInitialRefresh(refreshController);
+    useInitialRefresh(refreshController, onRefresh);
 
     final hasHeader = state.participants.isNotEmpty || state.isIsolated;
 

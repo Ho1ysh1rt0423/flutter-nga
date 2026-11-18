@@ -52,7 +52,7 @@ class TopicHistoryListPage extends HookConsumerWidget {
       }
     }
 
-    useInitialRefresh(refreshController);
+    useInitialRefresh(refreshController, onRefresh);
 
     useEffect(() {
       return () {

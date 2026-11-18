@@ -40,7 +40,7 @@ class _AccountManagementState extends ConsumerState<AccountManagementPage>
       }
     }
 
-    useInitialRefresh(_refreshController);
+    useInitialRefresh(_refreshController, onRefresh);
 
     return Scaffold(
       appBar: AppBar(

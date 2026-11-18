@@ -54,7 +54,7 @@ class MessageBlockListPage extends HookConsumerWidget {
       );
     }
 
-    useInitialRefresh(refreshController);
+    useInitialRefresh(refreshController, onRefresh);
 
     return Scaffold(
       appBar: AppBar(title: const Text('屏蔽用户')),
