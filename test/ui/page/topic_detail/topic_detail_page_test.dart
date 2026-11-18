@@ -248,9 +248,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(
-          home: TopicDetailPage(2, 10),
-        ),
+        child: const MaterialApp(home: TopicDetailPage(2, 10)),
       ),
     );
     await harness.waitForRefreshStart(tester, requestKey);
@@ -293,8 +291,7 @@ void main() {
       }
     }
     await tester.pumpAndSettle();
-    expect(find.text('2/3'), findsOneWidget,
-        reason: '横向占优的滑动必须翻页');
+    expect(find.text('2/3'), findsOneWidget, reason: '横向占优的滑动必须翻页');
 
     await tester.pump(const Duration(seconds: 1));
     await tester.pumpWidget(const SizedBox.shrink());
@@ -314,9 +311,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(
-          home: TopicDetailPage(2, 10),
-        ),
+        child: const MaterialApp(home: TopicDetailPage(2, 10)),
       ),
     );
     await harness.waitForRefreshStart(tester, requestKey);
@@ -344,8 +339,7 @@ void main() {
     }
     await gesture.up();
     await tester.pumpAndSettle();
-    expect(find.text('1/3'), findsOneWidget,
-        reason: '斜向滑动不应误触翻页');
+    expect(find.text('1/3'), findsOneWidget, reason: '斜向滑动不应误触翻页');
 
     // 收尾：把还挂着的请求完成，避免 teardown 时残留定时器
     for (final entry in harness.requests.entries) {

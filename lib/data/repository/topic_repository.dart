@@ -226,9 +226,9 @@ class TopicDataRepository implements TopicRepository {
       // 界面会提示「内容不完整」并禁用翻页（详见 TopicDetailData.maxPage）。
       final Response<Map<String, dynamic>> response = await _dio.get(
         "read.php?__output=8&tid=$tid&page=$page${authorid == null ? "" : "&authorid=$authorid"}",
-        options: Options(extra: {
-          NgaDioConfigurator.allowTruncatedRepairKey: true,
-        }),
+        options: Options(
+          extra: {NgaDioConfigurator.allowTruncatedRepairKey: true},
+        ),
       );
       return TopicDetailData.fromJson(
         response.data!,
@@ -249,10 +249,12 @@ class TopicDataRepository implements TopicRepository {
     // 串行队列每个截断的 tid 多白等 3.4 秒。
     final Response<Map<String, dynamic>> response = await _dio.get(
       "read.php?__output=8&tid=$tid&pid=0",
-      options: Options(extra: {
-        NgaDioConfigurator.allowTruncatedRepairKey: true,
-        NgaDioConfigurator.truncationMaxRetriesKey: 0,
-      }),
+      options: Options(
+        extra: {
+          NgaDioConfigurator.allowTruncatedRepairKey: true,
+          NgaDioConfigurator.truncationMaxRetriesKey: 0,
+        },
+      ),
     );
     final data = response.data;
     if (data == null) return const [];
@@ -313,9 +315,9 @@ class TopicDataRepository implements TopicRepository {
       // 只消费 replyList / userList，缺总览字段不影响使用。
       final Response<Map<String, dynamic>> response = await _dio.get(
         "read.php?__output=8&pid=$pid",
-        options: Options(extra: {
-          NgaDioConfigurator.allowTruncatedRepairKey: true,
-        }),
+        options: Options(
+          extra: {NgaDioConfigurator.allowTruncatedRepairKey: true},
+        ),
       );
       return TopicDetailData.fromJson(
         response.data!,
