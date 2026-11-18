@@ -39,11 +39,15 @@ class _FakeRepository implements TopicRepository {
   };
   bool failDelete = false;
   Completer<void>? deleteGate;
+
+  /// 取数闸门：模拟弱网下拉取耗时，覆盖「取数期间删除」的竞态窗口
+  Completer<void>? listGate;
   final events = <String>[];
 
   @override
   Future<TopicListData> getFavouriteTopicList(int page) async {
     events.add('list $page');
+    await listGate?.future;
     return _data(pages[page] ?? const []);
   }
 
@@ -142,6 +146,40 @@ void main() {
       repository.pages[2] = [_topic(3), _topic(4)];
       await notifier.loadMore();
       expect(_tids(container), [1, 2, 3, 4]);
+    });
+
+    test('refresh 取数期间的删除不随结果复活', () async {
+      // 取数挂起期间用户删条目：取回的是删除前快照，整表覆盖会让它复活
+      repository.listGate = Completer<void>();
+      final refresh = notifier.refresh();
+      await Future<void>.delayed(Duration.zero);
+      notifier.removeLocally(_topic(3));
+      repository.listGate!.complete();
+      await refresh;
+
+      expect(repository.deletes, ['3@1'], reason: '取数窗口内的删除要补提交');
+      expect(_tids(container), [1, 2], reason: '已删条目不能随删除前快照回来');
+    });
+
+    test('提交早于取数的条目若服务端重新返回则放行（重新收藏场景）', () async {
+      notifier.removeLocally(_topic(3));
+      await notifier.commitDeletion(3);
+      // 服务端重新出现该条目（用户重新收藏 / 服务端延迟）
+      repository.pages[1] = [_topic(1), _topic(2), _topic(3)];
+      await notifier.refresh();
+      expect(_tids(container), [1, 2, 3]);
+    });
+
+    test('loadMore 取数期间的删除不随下一页数据放回', () async {
+      repository.pages[2] = [_topic(3), _topic(4)];
+      repository.listGate = Completer<void>();
+      final loading = notifier.loadMore();
+      await Future<void>.delayed(Duration.zero);
+      notifier.removeLocally(_topic(1));
+      repository.listGate!.complete();
+      await loading;
+
+      expect(_tids(container), [2, 3, 4]);
     });
   });
 

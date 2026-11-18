@@ -39,15 +39,36 @@ class TopicListData {
     return TopicListData(
       global: map["__GLOBAL"],
       forum: ForumInfo.fromJson(asJsonMap(map["__F"], 'TopicListData.__F')),
-      rows: map["__ROWS"] != "" ? map["__ROWS"] : null,
+      rows: _asIntOrNull(map["__ROWS"]),
       topicList: tempMap,
-      currentRows: map["__T__ROWS"],
-      topicRows: map["__T__ROWS_PAGE"],
-      rRows: map["__R__ROWS_PAGE"],
+      currentRows: _asInt(map["__T__ROWS"]),
+      topicRows: _asInt(map["__T__ROWS_PAGE"]),
+      // 截断抢救的数据常缺这几个总览字段，缺失按 0 兜底（页数计算会再兜）
+      rRows: _asInt(map["__R__ROWS_PAGE"]),
     );
   }
 
-  int get maxPage => rows! ~/ rRows + (rows! % rRows != 0 ? 1 : 0);
+  static int? _asIntOrNull(dynamic value) {
+    if (value == null || value == "") return null;
+    if (value is int) return value;
+    return int.tryParse(value.toString());
+  }
+
+  static int _asInt(dynamic value) => _asIntOrNull(value) ?? 0;
+
+  /// 总页数（含尾页）。
+  ///
+  /// 截断抢救出的列表数据可能缺 `__ROWS` / `__R__ROWS_PAGE`，`rRows` 还可能
+  /// 为 0（除零）：这些场景页数不可信，回退 1（当前页至少存在），别把
+  /// 整页列表请求打崩——上层按 enablePullUp=false 停止翻页即可。
+  int get maxPage {
+    final total = rows;
+    final perPage = rRows;
+    if (total == null || total <= 0 || perPage <= 0) {
+      return 1;
+    }
+    return total ~/ perPage + (total % perPage != 0 ? 1 : 0);
+  }
 }
 
 class Topic {

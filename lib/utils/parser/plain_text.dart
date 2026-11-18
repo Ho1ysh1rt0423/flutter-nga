@@ -114,9 +114,9 @@ void _writeElement(dom.Element element, StringBuffer buffer) {
   if (isBlock) _newLine(buffer);
 }
 
-/// 已在行首时不重复换行，避免块元素嵌套产生多余空行。
+/// 块边界换行。不做「已在行首」检查——那是 O(n) 的全量 toString 拷贝，
+/// 长帖（上千个块边界）会放大成 O(n²) 卡 UI 线程；连续换行由
+/// htmlToPlainText 尾部的 `\n{3,}` 归一化兜底，最终结果一致。
 void _newLine(StringBuffer buffer) {
-  if (buffer.isEmpty) return;
-  final text = buffer.toString();
-  if (!text.endsWith('\n')) buffer.write('\n');
+  buffer.write('\n');
 }
