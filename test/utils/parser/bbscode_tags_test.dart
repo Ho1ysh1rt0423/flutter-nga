@@ -81,6 +81,72 @@ void main() {
     expect(parsed, '<pre><code>var a = 1;</code></pre>');
   });
 
+  group('jumpurl（站方编辑器的 [url] 等价标签）', () {
+    test('bare form renders as a link without raw tag text', () {
+      final parsed = NgaContentParser.parse(
+        '[jumpurl]https://bbs.nga.cn/misc/event/20261104genshin/index.html'
+        '[/jumpurl]',
+      );
+      expect(
+        parsed,
+        "<a href='https://bbs.nga.cn/misc/event/20261104genshin/index.html'>"
+        'https://bbs.nga.cn/misc/event/20261104genshin/index.html</a>',
+      );
+      expect(parsed, isNot(contains('jumpurl')));
+      expect(parsed, isNot(contains('ubb-unknown')));
+    });
+
+    test('titled form follows [url=…] semantics', () {
+      final parsed = NgaContentParser.parse(
+        '[jumpurl=https://bbs.nga.cn/a.html]点我[/jumpurl]',
+      );
+      expect(parsed, "<a href='https://bbs.nga.cn/a.html'>点我</a>");
+    });
+
+    test('tag name is case insensitive', () {
+      final parsed = NgaContentParser.parse(
+        '[JUMPURL]https://a.com/x[/JUMPURL]',
+      );
+      expect(parsed, "<a href='https://a.com/x'>https://a.com/x</a>");
+    });
+
+    test('in-site path resolves to the current domain', () {
+      final parsed = NgaContentParser.parse(
+        '[jumpurl]/thread.php?tid=5[/jumpurl]',
+      );
+      expect(parsed, contains("[站内链接]"));
+      expect(parsed, isNot(contains('[jumpurl')));
+    });
+
+    test('unclosed tag stays as text instead of being swallowed', () {
+      // 未闭合时正则不匹配，原文保留但不标灰（已在 _knownTags 登记）。
+      final parsed = NgaContentParser.parse('[jumpurl]未闭合');
+      expect(parsed, contains('[jumpurl]未闭合'));
+      expect(parsed, isNot(contains('ubb-unknown')));
+    });
+
+    test('pre-rendered html inside the tag is preserved as-is', () {
+      // 站方编辑器偶尔把已渲染的 <a>（JSON 里为 HTML 实体）塞进 [jumpurl]，
+      // unescapeHtml 后成为字面量。此时不能再包一层链接，否则整段 HTML
+      // 会被转义进 href，渲染出带转义文本的坏链接（真机实测踩过）。
+      final parsed = NgaContentParser.parse(
+        "[jumpurl]&lt;a href=&#39;https://bbs.nga.cn/misc/event/x.html&#39;&gt;"
+        'https://bbs.nga.cn/misc/event/x.html&lt;/a&gt;[/jumpurl]',
+      );
+      expect(
+        parsed,
+        "<a href='https://bbs.nga.cn/misc/event/x.html'>"
+        'https://bbs.nga.cn/misc/event/x.html</a>',
+      );
+      expect(parsed, isNot(contains('&lt;')));
+    });
+
+    test('non-url content passes through without being wrapped', () {
+      final parsed = NgaContentParser.parse('[jumpurl]随便什么文字[/jumpurl]');
+      expect(parsed, '随便什么文字');
+    });
+  });
+
   test('media behaves like flash, attachments use the attachment host', () {
     final parsed = NgaContentParser.parse(
       '[media]https://example.com/a.mp4[/media] '
