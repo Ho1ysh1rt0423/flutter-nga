@@ -923,6 +923,21 @@ class _ContentParser implements Parser {
     r'\[url\]([\s\S]*?)\[/url\]',
     caseSensitive: false,
   );
+
+  /// 站方编辑器生成的 `[jumpurl]` / `[jumpurl=…]`，语义与 `[url]` 相同
+  /// （App 内都是交给浏览器打开），复用同一套替换逻辑。
+  ///
+  /// 这类标签只出现在站方（官方编辑器）发出的活动/公告帖里，上游一直缺这条
+  /// 解析，落到兜底分支后会把标签原文糊在正文里。分组顺序与 `[url]` 一致，
+  /// 因此可以直接复用 `_urlWithTitleReplacer` / `_urlReplacer`。
+  static final _jumpUrlWithTitleRegex = RegExp(
+    r'\[jumpurl=([\s\S]*?)\]([\s\S]*?)\[/jumpurl\]',
+    caseSensitive: false,
+  );
+  static final _jumpUrlRegex = RegExp(
+    r'\[jumpurl\]([\s\S]*?)\[/jumpurl\]',
+    caseSensitive: false,
+  );
   static final _attachRegex = RegExp(
     r'\[attach\]([\s\S]*?)\[/attach\]',
     caseSensitive: false,
@@ -1044,6 +1059,12 @@ class _ContentParser implements Parser {
     result = result.replaceAllMapped(_atRegex, _atReplacer);
     result = result.replaceAllMapped(_urlWithTitleRegex, _urlWithTitleReplacer);
     result = result.replaceAllMapped(_urlRegex, _urlReplacer);
+    // [jumpurl] 与 [url] 同义，分组顺序一致，复用上面两个 replacer。
+    result = result.replaceAllMapped(
+      _jumpUrlWithTitleRegex,
+      _urlWithTitleReplacer,
+    );
+    result = result.replaceAllMapped(_jumpUrlRegex, _jumpUrlReplacer);
     result = result.replaceAllMapped(_attachRegex, _attachReplacer);
     result = result.replaceAllMapped(_flashRegex, _flashReplacer);
     result = result.replaceAllMapped(_iframeRegex, _iframeReplacer);
@@ -1134,6 +1155,22 @@ class _ContentParser implements Parser {
     return raw.startsWith('/')
         ? "<a href='${_escapeHtmlAttribute(url)}'>[站内链接]</a>"
         : "<a href='${_escapeHtmlAttribute(url)}'>${_escapeHtmlText(raw)}</a>";
+  }
+
+  /// `[jumpurl]` 裸形式的替换：多数情况是纯 URL，直接走 `[url]` 的逻辑；
+  /// 但站方编辑器偶尔会把**已渲染的 HTML**（如 `<a>` 标签，JSON 里以实体
+  /// 存储、`unescapeHtml` 后还原为字面量）塞进标签内 —— 此时原样保留交给
+  /// fwfh 渲染。若照搬 `_urlReplacer`，会把整段 HTML 转义进 href，
+  /// 渲染出「链接样式 + 转义标签文本」的坏链接（真机实测踩过）。
+  static String _jumpUrlReplacer(Match m) {
+    final raw = (m.group(1) ?? '').trim();
+    if (raw.isEmpty) return '';
+    final looksLikeUrl =
+        raw.startsWith('http://') ||
+        raw.startsWith('https://') ||
+        raw.startsWith('/');
+    if (!looksLikeUrl) return raw;
+    return _urlReplacer(m);
   }
 
   String _attachReplacer(Match m) {
@@ -1637,6 +1674,7 @@ class _UnsupportedTagFallbackParser implements Parser {
     'i',
     'iframe',
     'img',
+    'jumpurl',
     'l',
     'lessernuke',
     'list',
