@@ -14,7 +14,7 @@ class InterfaceSettingsPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text("界面设置")),
-body: ReadableListPadding(
+      body: ReadableListPadding(
         builder: (context, padding) => ListView(
           padding: padding,
           children: [
