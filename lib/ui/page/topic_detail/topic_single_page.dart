@@ -147,8 +147,10 @@ class TopicSinglePage extends HookConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  // 强调「服务端故障、需等待」，避免用户反复下拉以为马上能刷出来
-                  '服务端返回的数据不完整（NGA 服务端故障，通常几分钟内自行恢复）；'
+                  // 强调「服务端故障、需等待」，避免用户反复下拉以为马上能刷出来。
+                  // 实测故障可持续 1 小时以上（2026-11-19 签到活动帖），
+                  // 别写「几分钟」误导预期；重试无效 = 源站还没恢复
+                  '服务端返回的数据不完整（NGA 服务端故障，需等待源站自行恢复）；'
                   '当前仅显示已加载的楼层',
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: colorScheme.onSurfaceVariant),
