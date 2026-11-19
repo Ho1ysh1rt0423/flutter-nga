@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ 本仓库是个人 fork —— 先读本地文档再动手
 
-本仓库 = 上游 `loshine/flutter-nga` main（`906f737`，PR #34~#38）+ **25 个本地提交**
+本仓库 = 上游 `loshine/flutter-nga` main（基点 `906f737`，PR #34~#38）+ 一串本地定制提交
 （截断抢救、列表配图、图片预览接线、UI 定制五项、深色启动屏、最近访问、
-首刷修复、长按复制、审计修复等）。改动前必读（均为本地未跟踪文件）：
+首刷修复、长按复制、审计修复等；**具体条数与哈希用 `git log 906f737..main` 查，
+文档不写死数字**）。改动前必读（均为本地未跟踪文件）：
 
 1. **`docs/PROJECT_MAP.md`** —— 架构拆解：每个模块在哪、负责什么、数据流、
    rebase 冲突热点（第九节）
