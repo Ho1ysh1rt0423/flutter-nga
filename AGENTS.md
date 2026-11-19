@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ 本仓库是个人 fork —— 先读本地文档再动手
 
-本仓库 = 上游 `loshine/flutter-nga` main（`7eb43e7`，PR #34~#37）+ **21 个本地提交**
+本仓库 = 上游 `loshine/flutter-nga` main（`906f737`，PR #34~#38）+ **23 个本地提交**
 （截断抢救、列表配图、图片预览接线、UI 定制五项、深色启动屏、最近访问、
 首刷修复、长按复制、审计修复等）。改动前必读（均为本地未跟踪文件）：
 
@@ -15,10 +15,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. **`docs/LOCAL_FEATURES.md`** —— 对比上游的全部定制功能清单（文件/机制/测试/状态），
    以及「别 resurrect 的废弃方案」
 3. **`docs/DEV_GUIDE.md`** —— 环境导出、构建命令、真机排查、发布、上游同步流程、
-   15 条实测坑清单
+   16 条实测坑清单
 
 硬性约定：
-- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 400 全过）必须复现；
+- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 422 全过）必须复现；
   定制功能的专属测试清单在 LOCAL_FEATURES.md——**红了 = 上游改动破坏了定制**。
 - **新增/修改功能后必须同步更新 `docs/LOCAL_FEATURES.md`**（功能清单是后续会话
   判断「哪些行为是定制的、不能被上游改动冲掉」的唯一依据），架构性变化同步
