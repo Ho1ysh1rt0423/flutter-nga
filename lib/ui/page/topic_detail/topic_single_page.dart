@@ -106,7 +106,7 @@ class TopicSinglePage extends HookConsumerWidget {
           children: [
             if (state.truncated) _buildTruncatedBanner(context, onRefresh),
             Expanded(
-// 大屏下楼层列表收窄居中；截断横幅仍在全宽顶部
+              // 大屏下楼层列表收窄居中；截断横幅仍在全宽顶部
               child: ReadableListPadding(
                 builder: (context, padding) => ListView.builder(
                   padding: padding,

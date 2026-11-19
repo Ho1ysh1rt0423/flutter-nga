@@ -238,7 +238,7 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
             ),
           ],
         ),
-SizedBox(
+        SizedBox(
           // 评论楼层隐藏"对主题发表了一条评论"占位标题
           height:
               widget.commentSource != null ||
