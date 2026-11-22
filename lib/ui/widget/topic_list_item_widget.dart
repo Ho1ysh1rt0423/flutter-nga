@@ -56,10 +56,14 @@ class TopicListItemWidget extends ConsumerWidget {
     // 计算透明度
     final alpha = blockMode == BlockMode.ALPHA ? 0.38 : 1.0;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        InkWell(
+    // M3 卡片式列表项：圆角 16 容器 + surfaceContainerLow 底色，块间留白
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
+      child: Material(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
           onTap: () => _goTopicDetail(context, topic, ref),
           onLongPress: onLongPress,
           child: Opacity(
@@ -67,9 +71,9 @@ class TopicListItemWidget extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 16,
-                16,
+                14,
                 trailing == null ? 16 : 4,
-                16,
+                14,
               ),
               child: _withTrailing(
                 Column(
@@ -89,7 +93,13 @@ class TopicListItemWidget extends ConsumerWidget {
                     // 配图（最多 3 张，对齐 NGA 原版）
                     if (topic.attachmentUrls.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildAttachmentPreview(context, topic.attachmentUrls),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: _buildAttachmentPreview(
+                          context,
+                          topic.attachmentUrls,
+                        ),
+                      ),
                     ] else if (topic.hasAttachment()) ...[
                       // 列表接口没给 attachs（服务端按版块下发），退化为请求主楼首图
                       _buildLazyThumbnail(context, ref, topic),
@@ -105,12 +115,7 @@ class TopicListItemWidget extends ConsumerWidget {
             ),
           ),
         ),
-        Divider(
-          height: 1,
-          thickness: 1,
-          color: colorScheme.surfaceContainerHighest,
-        ),
-      ],
+      ),
     );
   }
 
@@ -127,24 +132,21 @@ class TopicListItemWidget extends ConsumerWidget {
   }
 
   Widget _buildCollapsedCard(BuildContext context, ColorScheme colorScheme) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
+      child: Material(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          color: colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
           child: Text(
             "折叠的屏蔽内容",
             style: TextStyle(color: colorScheme.onSurfaceVariant),
           ),
         ),
-        Divider(
-          height: 1,
-          thickness: 1,
-          color: colorScheme.surfaceContainerHighest,
-        ),
-      ],
+      ),
     );
   }
 
