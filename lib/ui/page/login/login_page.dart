@@ -6,68 +6,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:flutter_nga/data/data.dart';
-import 'package:flutter_nga/data/repository/user_repository.dart';
 import 'package:flutter_nga/providers/forum/favourite_forum_list_provider.dart';
 import 'package:flutter_nga/ui/widget/import_cookies_dialog.dart';
 import 'package:flutter_nga/utils/app_toast.dart';
-import 'package:flutter_nga/utils/error_utils.dart';
 import 'package:flutter_nga/utils/route.dart';
 
 /// NGA 登录页（`nuke.php?__lib=login`）外层页面把 `body` 与登录 iframe `#iff`
-/// 限宽 350px 并居中；覆盖为 100% 宽并按 App 主题着色，让表单撑满屏幕并融入
-/// Material 观感。内页按自身宽度计算字号，须在 iframe 加载前生效，因此于文档
-/// 开始时注入（外层与 iframe 两个分支见脚本内的 `isOuter` / `isForm`）。
+/// 限宽 350px 并居中、背景为灰色；覆盖为 100% 宽并改用表单背景色，让表单撑满屏幕。
+/// 内页按自身宽度计算字号，须在 iframe 加载前生效，因此于文档开始时注入。
 /// 同时在 [_loginPagePatchScript] 完成切换前隐藏 iframe，避免闪现扫码界面。
-String _loginThemeScript(ColorScheme colorScheme) {
-  String cssHex(Color c) {
-    String h(int v) => v.toRadixString(16).padLeft(2, '0');
-    final r = (c.r * 255.0).round().clamp(0, 255);
-    final g = (c.g * 255.0).round().clamp(0, 255);
-    final b = (c.b * 255.0).round().clamp(0, 255);
-    return '#${h(r)}${h(g)}${h(b)}';
-  }
-
-  final theme = json.encode({
-    'bg': cssHex(colorScheme.surface),
-    'text': cssHex(colorScheme.onSurface),
-    'primary': cssHex(colorScheme.primary),
-    'onPrimary': cssHex(colorScheme.onPrimary),
-    'field': cssHex(colorScheme.surfaceContainerHighest),
-    'border': cssHex(colorScheme.outlineVariant),
-  });
-  return '''
+const _loginPageStyleScript = r'''
 (function () {
-  var isOuter = /[?&]__lib=login(&|\\\$)/.test(location.search);
-  var isForm = /account_copy\\.html/.test(location.href);
-  if (!isOuter && !isForm) return;
-  var T = $theme;
-  var css;
-  if (isOuter) {
-    css =
-      'body, #iff { width: 100% !important; }' +
-      'body { background: ' + T.bg + ' !important; }' +
-      '#iff:not([data-fnga-ready]) { visibility: hidden; }';
-  } else {
-    css =
-      'body { background: ' + T.bg + ' !important; color: ' + T.text + ' !important; }' +
-      'span, div, label { color: ' + T.text + ' !important; }' +
-      'input[type=text], input[type=password] { background: ' + T.field +
-      ' !important; color: ' + T.text + ' !important; border: 1px solid ' + T.border +
-      ' !important; border-radius: 10px !important; padding: 10px 12px !important; font-size: 15px !important; box-sizing: border-box !important; outline: none !important; }' +
-      'input[type=text]:focus, input[type=password]:focus { border-color: ' + T.primary + ' !important; }' +
-      'input[type=submit], input[type=button], button { background: ' + T.primary +
-      ' !important; color: ' + T.onPrimary + ' !important; border: none !important; border-radius: 24px !important; padding: 10px 18px !important; font-weight: 600 !important; }' +
-      'select { background: ' + T.field + ' !important; color: ' + T.text +
-      ' !important; border: 1px solid ' + T.border + ' !important; border-radius: 10px !important; }' +
-      'a { color: ' + T.primary + ' !important; text-decoration: none !important; }' +
-      'img { border-radius: 8px !important; }';
-  }
+  if (!/[?&]__lib=login(&|$)/.test(location.search)) return;
   var style = document.createElement('style');
-  style.textContent = css;
+  style.textContent =
+    'body, #iff { width: 100% !important; }' +
+    'body { background: rgb(255, 246, 223) !important; }' +
+    '#iff:not([data-fnga-ready]) { visibility: hidden; }';
   (document.head || document.documentElement).appendChild(style);
 })();
 ''';
-}
 
 /// 官方客户端身份桥（逆向自官方 APK 的 LoginWebView / rv.m0）。
 ///
@@ -347,10 +305,6 @@ const _loginPagePatchScript = r'''
 })();
 ''';
 
-/// 原生登录页：账号密码表单直连 `/nuke.php`（checksum 免验证码）。
-///
-/// 注册 / 找回密码 / 图形验证码等长尾流程不做原生重写，经
-/// [_WebViewLoginPage]（网页版登录）承载——它已具备免验证码能力。
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -359,249 +313,7 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
-  final _accountController = TextEditingController();
-  final _passwordController = TextEditingController();
-  LoginAccountType _type = LoginAccountType.auto;
-  bool _obscurePassword = true;
-  bool _agreedTerms = false;
-  bool _submitting = false;
-  bool _captchaHint = false;
-
-  @override
-  void dispose() {
-    _accountController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (_submitting) return;
-    final account = _accountController.text.trim();
-    final password = _passwordController.text;
-    if (account.isEmpty) {
-      AppToast.info('请输入账号');
-      return;
-    }
-    if (password.isEmpty) {
-      AppToast.info('请输入密码');
-      return;
-    }
-    if (!_agreedTerms) {
-      AppToast.info('请先阅读并同意用户协议');
-      return;
-    }
-    setState(() => _submitting = true);
-    try {
-      final user = await Data().userRepository.loginWithPassword(
-        account: account,
-        password: password,
-        type: _type,
-      );
-      ref.read(favouriteForumListProvider.notifier).onAccountChanged();
-      if (!mounted) return;
-      AppToast.success('登录成功，欢迎 ${user.nickname}');
-      Routes.pop(context);
-    } catch (err) {
-      if (!mounted) return;
-      // 服务端偶发要求图形验证码（checksum 有效性由服务端把控）：
-      // 原生路径不做验证码 UI，引导网页登录兜底
-      if (errorMessage(err).contains('验证码')) {
-        setState(() => _captchaHint = true);
-        AppToast.info('本次登录需要图形验证码，请改用网页登录');
-      } else {
-        AppToast.error(err);
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
-  void _openWebViewLogin() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const _WebViewLoginPage()));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('登录'),
-        actions: [
-          IconButton(
-            tooltip: '导入 Cookies',
-            onPressed: _showImportCookiesDialog,
-            icon: const Icon(Icons.cookie_outlined),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          children: [
-            Text(
-              '登录 NGA 玩家社区',
-              style: Theme.of(context).textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _accountController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: '账号',
-                hintText: '用户名 / 邮箱 / 手机号 / 用户ID',
-                prefixIcon: Icon(Icons.person_outline),
-                border: OutlineInputBorder(),
-              ),
-              autofillHints: const [AutofillHints.username],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                labelText: '密码',
-                prefixIcon: const Icon(Icons.lock_outline),
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? '显示密码' : '隐藏密码',
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                ),
-              ),
-              autofillHints: const [AutofillHints.password],
-              onSubmitted: (_) => _submit(),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<LoginAccountType>(
-              initialValue: _type,
-              decoration: const InputDecoration(
-                labelText: '账号类型',
-                prefixIcon: Icon(Icons.category_outlined),
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                for (final t in LoginAccountType.values)
-                  DropdownMenuItem(
-                    value: t,
-                    child: Text(switch (t) {
-                      LoginAccountType.auto => '自动识别',
-                      LoginAccountType.mail => '邮箱',
-                      LoginAccountType.id => '用户ID',
-                      LoginAccountType.phone => '手机号',
-                    }),
-                  ),
-              ],
-              onChanged: (value) {
-                if (value != null) setState(() => _type = value);
-              },
-            ),
-            CheckboxListTile(
-              value: _agreedTerms,
-              onChanged: (value) =>
-                  setState(() => _agreedTerms = value ?? false),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              title: const Text('我已阅读并同意用户协议'),
-            ),
-            if (_captchaHint)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Material(
-                  color: colorScheme.errorContainer.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.verified_user_outlined,
-                          size: 18,
-                          color: colorScheme.error,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '本次登录被要求图形验证码，用下方「网页登录」重试即可（已免验证码）',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: _submitting ? null : _submit,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-              ),
-              child: _submitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('登 录'),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: _submitting ? null : _openWebViewLogin,
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(44),
-              ),
-              child: const Text('网页登录（含注册 / 找回密码）'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showImportCookiesDialog() {
-    return showDialog(
-      context: context,
-      builder: (context) {
-        return ImportCookiesDialog(cookiesCallback: _processCookiesString);
-      },
-    );
-  }
-
-  Future<void> _processCookiesString(String cookies) async {
-    try {
-      await Data().userRepository.saveLoginCookies(cookies);
-      ref.read(favouriteForumListProvider.notifier).onAccountChanged();
-      if (!mounted) return;
-      AppToast.success('登录成功');
-      Routes.pop(context);
-    } catch (error, stack) {
-      debugPrintStack(stackTrace: stack);
-      AppToast.error(error);
-    }
-  }
-}
-
-class _WebViewLoginPage extends ConsumerStatefulWidget {
-  const _WebViewLoginPage();
-
-  @override
-  ConsumerState<_WebViewLoginPage> createState() => _WebViewLoginPageState();
-}
-
-class _WebViewLoginPageState extends ConsumerState<_WebViewLoginPage> {
   InAppWebViewController? _webViewController;
-
-  /// WebView 页面加载进度（0~1），AppBar 下的细进度条用
-  double _progress = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -621,7 +333,7 @@ class _WebViewLoginPageState extends ConsumerState<_WebViewLoginPage> {
     if (controller != null && await controller.canGoBack()) {
       await controller.goBack();
     } else if (mounted) {
-      Navigator.of(context).pop();
+      Routes.pop(context);
     }
   }
 
@@ -638,95 +350,79 @@ class _WebViewLoginPageState extends ConsumerState<_WebViewLoginPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (_progress < 1.0)
-            LinearProgressIndicator(value: _progress, minHeight: 2),
-          Expanded(child: _buildWebView()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWebView() {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InAppWebView(
-      // UA 带上官方客户端标记：登录 iframe 靠 `Nga_Offic` 置安卓客户端位，
-      // 走 `ngaObj.doAction('checksum')` 桥索取 `__ngaClientChecksum`，
-      // 服务端据此免图片验证码（与官方 App 的 WebView 登录同机制）。
-      // 版本码用本项目自己的，页面只拿它算第三方登录按钮的显示位。
-      initialSettings: InAppWebViewSettings(
-        userAgent: "Nga_Official/10001 (FlutterNGA; Android)",
-      ),
-      initialUrlRequest: URLRequest(
-        url: WebUri.uri(
-          Uri.https(Data().domain, "nuke.php", {
-            '__lib': 'login',
-            '__act': 'account',
-            'login': null,
-          }),
+      body: InAppWebView(
+        // UA 带上官方客户端标记：登录 iframe 靠 `Nga_Offic` 置安卓客户端位，
+        // 走 `ngaObj.doAction('checksum')` 桥索取 `__ngaClientChecksum`，
+        // 服务端据此免图片验证码（与官方 App 的 WebView 登录同机制）。
+        // 版本码用本项目自己的，页面只拿它算第三方登录按钮的显示位。
+        initialSettings: InAppWebViewSettings(
+          userAgent: "Nga_Official/10001 (FlutterNGA; Android)",
         ),
-      ),
-      initialUserScripts: UnmodifiableListView([
-        // 主题样式注入到所有帧：外层壳与 iframe 表单都按 App 主题着色
-        UserScript(
-          source: _loginThemeScript(colorScheme),
-          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
-          forMainFrameOnly: false,
-        ),
-        // shim 必须进 iframe（登录表单在 account_copy.html 里）
-        UserScript(
-          source: _ngaObjShimScript,
-          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
-          forMainFrameOnly: false,
-        ),
-        UserScript(
-          source: _loginPagePatchScript,
-          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_END,
-        ),
-      ]),
-      onProgressChanged: (controller, progress) {
-        if (mounted) setState(() => _progress = progress / 100);
-      },
-      onWebViewCreated: (controller) {
-        _webViewController = controller;
-        controller.addJavaScriptHandler(
-          handlerName: 'pickOption',
-          callback: (args) => _pickOption(
-            title: args[0] as String,
-            options: [for (final option in args[1] as List) '$option'],
-            selectedIndex: args[2] as int,
+        initialUrlRequest: URLRequest(
+          url: WebUri.uri(
+            Uri.https(Data().domain, "nuke.php", {
+              '__lib': 'login',
+              '__act': 'account',
+              'login': null,
+            }),
           ),
-        );
-      },
-      onJsAlert: (controller, request) async {
-        await _showWebMessage(request.message ?? '');
-        return JsAlertResponse(
-          handledByClient: true,
-          action: JsAlertResponseAction.CONFIRM,
-        );
-      },
-      onJsConfirm: (controller, request) async {
-        final confirmed = await _showWebMessage(
-          request.message ?? '',
-          cancelable: true,
-        );
-        return JsConfirmResponse(
-          handledByClient: true,
-          action: confirmed
-              ? JsConfirmResponseAction.CONFIRM
-              : JsConfirmResponseAction.CANCEL,
-        );
-      },
-      onConsoleMessage:
-          (InAppWebViewController controller, ConsoleMessage consoleMessage) {
-            if (consoleMessage.message.startsWith("loginSuccess :")) {
-              final cookiesJson = consoleMessage.message.substring(
-                "loginSuccess : ".length,
-              );
-              _processCookieJson(cookiesJson);
-            }
-          },
+        ),
+        initialUserScripts: UnmodifiableListView([
+          UserScript(
+            source: _loginPageStyleScript,
+            injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+          ),
+          // shim 必须进 iframe（登录表单在 account_copy.html 里）
+          UserScript(
+            source: _ngaObjShimScript,
+            injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+            forMainFrameOnly: false,
+          ),
+          UserScript(
+            source: _loginPagePatchScript,
+            injectionTime: UserScriptInjectionTime.AT_DOCUMENT_END,
+          ),
+        ]),
+        onWebViewCreated: (controller) {
+          _webViewController = controller;
+          controller.addJavaScriptHandler(
+            handlerName: 'pickOption',
+            callback: (args) => _pickOption(
+              title: args[0] as String,
+              options: [for (final option in args[1] as List) '$option'],
+              selectedIndex: args[2] as int,
+            ),
+          );
+        },
+        onJsAlert: (controller, request) async {
+          await _showWebMessage(request.message ?? '');
+          return JsAlertResponse(
+            handledByClient: true,
+            action: JsAlertResponseAction.CONFIRM,
+          );
+        },
+        onJsConfirm: (controller, request) async {
+          final confirmed = await _showWebMessage(
+            request.message ?? '',
+            cancelable: true,
+          );
+          return JsConfirmResponse(
+            handledByClient: true,
+            action: confirmed
+                ? JsConfirmResponseAction.CONFIRM
+                : JsConfirmResponseAction.CANCEL,
+          );
+        },
+        onConsoleMessage:
+            (InAppWebViewController controller, ConsoleMessage consoleMessage) {
+              if (consoleMessage.message.startsWith("loginSuccess :")) {
+                final cookiesJson = consoleMessage.message.substring(
+                  "loginSuccess : ".length,
+                );
+                _processCookieJson(cookiesJson);
+              }
+            },
+      ),
     );
   }
 
@@ -741,7 +437,7 @@ class _WebViewLoginPageState extends ConsumerState<_WebViewLoginPage> {
       ref.read(favouriteForumListProvider.notifier).onAccountChanged();
       if (mounted) {
         AppToast.success("登录成功");
-        Navigator.of(context).pop();
+        Routes.pop(context);
       }
     } catch (error) {
       AppToast.error(error);
@@ -831,7 +527,7 @@ class _WebViewLoginPageState extends ConsumerState<_WebViewLoginPage> {
       ref.read(favouriteForumListProvider.notifier).onAccountChanged();
       if (!mounted) return;
       AppToast.success("登录成功");
-      Navigator.of(context).pop();
+      Routes.pop(context);
     } catch (error, stack) {
       debugPrintStack(stackTrace: stack);
       AppToast.error(error);
