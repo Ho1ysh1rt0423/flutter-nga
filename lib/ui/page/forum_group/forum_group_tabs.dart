@@ -108,7 +108,7 @@ class ForumGroupTabsPage extends HookConsumerWidget {
           Material(
             color: Theme.of(context).colorScheme.surfaceContainerLowest,
             child: SizedBox(
-              width: 96,
+              width: 104,
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 itemCount: tabLabels.length,
@@ -168,17 +168,17 @@ class _RailCategoryTile extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       // 横向留出胶囊与栏边缘的间距，纵向形成块间距
-      padding: const EdgeInsets.fromLTRB(10, 3, 10, 3),
+      padding: const EdgeInsets.fromLTRB(8, 3, 8, 3),
       child: AnimatedContainer(
         duration: Motion.durationShort4,
         curve: Motion.emphasizedDecelerate,
         decoration: BoxDecoration(
           color: selected ? colorScheme.secondaryContainer : Colors.transparent,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
             alignment: Alignment.center,
@@ -187,7 +187,7 @@ class _RailCategoryTile extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: selected
                     ? colorScheme.onSecondaryContainer
                     : colorScheme.onSurfaceVariant,

@@ -20,11 +20,11 @@
     </queries>
 
     <application
+        android:enableOnBackInvokedCallback="true"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="FNGA"
-        android:enableOnBackInvokedCallback="true"
         android:requestLegacyExternalStorage="true"
         tools:ignore="AllowBackup">
 
