@@ -26,7 +26,10 @@ const Map<String, Object> _legacySettings = {
 
 /// fork 新增的设置 key：旧版本（ee86767）从未写过，因此不在迁移范围内，
 /// 但必须在 allowList 里（新增 key 必须在此显式登记，否则下面的守护会红）。
-const Set<String> _newSettingsKeys = {PrefsKeys.visitedForums};
+const Set<String> _newSettingsKeys = {
+  PrefsKeys.visitedForums,
+  PrefsKeys.uiHomeCategoryRail,
+};
 
 Future<SharedPreferencesWithCache> _restartApp() async {
   // 模拟冷启动：清空进程内缓存，但保留两个存储中的数据。

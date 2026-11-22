@@ -23,6 +23,9 @@ abstract final class PrefsKeys {
   static const uiLineHeight = 'ui_lineHeight';
   static const uiEmoticonSize = 'ui_emoticonSize';
 
+  /// 首页社区页用「左侧分类栏 + 右侧内容」双栏布局（对齐官方客户端）
+  static const uiHomeCategoryRail = 'ui_homeCategoryRail';
+
   // BlocklistSettingsNotifier
   static const blocklistClientBlockEnabled = 'blocklist_clientBlockEnabled';
   static const blocklistListBlockEnabled = 'blocklist_listBlockEnabled';
@@ -43,6 +46,7 @@ abstract final class PrefsKeys {
     uiTitleSizeMultiple,
     uiLineHeight,
     uiEmoticonSize,
+    uiHomeCategoryRail,
     blocklistClientBlockEnabled,
     blocklistListBlockEnabled,
     blocklistDetailsBlockEnabled,

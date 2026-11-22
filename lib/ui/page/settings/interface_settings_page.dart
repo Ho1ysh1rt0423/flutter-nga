@@ -79,6 +79,14 @@ class InterfaceSettingsPage extends ConsumerWidget {
                 ),
               ],
             ),
+            SwitchListTile(
+              title: Text("首页左侧分类栏"),
+              subtitle: Text("社区首页改为左侧分类栏 + 右侧内容的双栏布局（对齐官方客户端），关闭恢复顶部横向标签"),
+              value: state.homeCategoryRail,
+              onChanged: (v) {
+                notifier.setHomeCategoryRail(v);
+              },
+            ),
           ],
         ),
       ),
