@@ -5,6 +5,7 @@ import 'package:sembast/sembast_io.dart';
 import 'package:flutter_nga/data/core/data_config_service.dart';
 import 'package:flutter_nga/data/core/data_repositories.dart';
 import 'package:flutter_nga/data/core/nga_dio_configurator.dart';
+import 'package:flutter_nga/data/core/nga_error_sampler.dart';
 import 'package:flutter_nga/data/entity/base_url_config.dart';
 import 'package:flutter_nga/data/entity/user_agent_config.dart';
 import 'package:flutter_nga/data/repository/expression_repository.dart';
@@ -72,6 +73,7 @@ class Data {
 
   Future<void> _initInternal() async {
     _database = await _openDatabase();
+    NgaErrorSampler.instance.attach(_database!);
     await _configService.init();
 
     _dio = Dio();

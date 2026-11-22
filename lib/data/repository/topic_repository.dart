@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart';
@@ -8,6 +10,7 @@ import 'package:flutter_nga/data/entity/topic.dart';
 import 'package:flutter_nga/data/entity/topic_detail.dart';
 import 'package:flutter_nga/data/entity/topic_history.dart';
 import 'package:flutter_nga/data/entity/topic_tag.dart';
+import 'package:flutter_nga/data/repository/topic_detail_cache.dart';
 import 'package:flutter_nga/utils/code_utils.dart' as code_utils;
 import 'package:flutter_nga/utils/parser/html_topic_detail_parser.dart';
 
@@ -23,6 +26,14 @@ abstract class TopicRepository {
   Future<dynamic> getUserReplies(int authorid, int page);
 
   Future<TopicDetailData> getTopicDetail(int tid, int page, int? authorid);
+
+  /// 最近一次成功请求的缓存（stale-while-revalidate 兜底）。
+  /// 无缓存 / 超过 7 天 / 只有截断抢救数据时返回 null。
+  Future<({TopicDetailData data, int fetchedAt})?> getCachedTopicDetail(
+    int tid,
+    int page,
+    int? authorid,
+  );
 
   /// 只取主楼首图，列表缩略图兜底用。
   ///
@@ -124,6 +135,12 @@ class TopicDataRepository implements TopicRepository {
   }
 
   StoreRef<int, dynamic>? _lateHeadThumbnailStore;
+
+  /// 详情页原始响应缓存（刷新失败兜底展示旧数据，见 [getCachedTopicDetail]）
+  late final TopicDetailCache _detailCache = TopicDetailCache(database);
+
+  String _detailCacheKey(int tid, int page, int? authorid) =>
+      'd:$tid:$page:$authorid';
 
   @override
   Future<TopicListData> getTopicList({
@@ -250,7 +267,22 @@ class TopicDataRepository implements TopicRepository {
           // 回退失败：继续用抢救出的部分数据
         }
       }
-      return TopicDetailData.fromJson(response.data!, truncated: repaired);
+      final data = TopicDetailData.fromJson(
+        response.data!,
+        truncated: repaired,
+      );
+      if (!repaired) {
+        // 只缓存完整响应：截断抢救出来的本来就是残缺页，缓存它等于让用户
+        // 下次失败时看到同样的残页。官方 HTML 通道的回退结果也不缓存——
+        // 它的原始信封是 {code,html}，无法用 o8 的解析路径还原。
+        unawaited(
+          _detailCache.save(
+            _detailCacheKey(tid, page, authorid),
+            response.data!,
+          ),
+        );
+      }
+      return data;
     } catch (err) {
       if (_isTruncationReject(err)) {
         try {
@@ -266,6 +298,22 @@ class TopicDataRepository implements TopicRepository {
       }
       rethrow;
     }
+  }
+
+  @override
+  Future<({TopicDetailData data, int fetchedAt})?> getCachedTopicDetail(
+    int tid,
+    int page,
+    int? authorid,
+  ) async {
+    final cached = await _detailCache.load(
+      _detailCacheKey(tid, page, authorid),
+    );
+    if (cached == null) return null;
+    return (
+      data: TopicDetailData.fromJson(cached.data),
+      fetchedAt: cached.fetchedAt,
+    );
   }
 
   /// 官方 App 详情页用的输出格式（逆向自官方 APK）：服务端渲染的楼层骨架

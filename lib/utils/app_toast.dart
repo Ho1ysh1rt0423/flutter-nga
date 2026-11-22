@@ -10,10 +10,10 @@ abstract final class AppToast {
 
   /// Accepts either a display string or an arbitrary error object.
   ///
-  /// Error objects are normalized via [errorMessage] so Dio/server text
-  /// is preferred over noisy [Object.toString] dumps.
+  /// Error objects are normalized via [friendlyNgaErrorMessage]，把 NGA 的
+  /// 天书报错（「15:访客不能直接访问」）翻译成人话并给出可操作的建议。
   static void error(Object? message) {
-    _show(errorMessage(message), ToastificationType.error);
+    _show(friendlyNgaErrorMessage(message), ToastificationType.error);
   }
 
   static void warning(Object? message) {

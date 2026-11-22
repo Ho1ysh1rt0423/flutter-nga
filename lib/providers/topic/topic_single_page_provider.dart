@@ -18,6 +18,11 @@ class TopicSinglePageState {
   /// 完整的楼层）。此时页数/总楼数不可信（已回退为当前页），界面必须
   /// 明确提示内容不完整，用户刷新可尝试拿全量。
   final bool truncated;
+
+  /// 本页数据来自本地缓存（刷新失败时的 stale-while-revalidate 兜底），
+  /// 值为缓存写入时间戳；null = 服务端实时数据。界面据此显示「缓存内容」
+  /// 提示条，与 [truncated] 的横幅互斥出现。
+  final int? cachedAt;
   final Topic? topic;
   final List<Reply> replyList;
   final List<Reply> hotReplyList;
@@ -31,6 +36,7 @@ class TopicSinglePageState {
     this.maxFloor = 1,
     this.enablePullUp = false,
     this.truncated = false,
+    this.cachedAt,
     this.topic,
     this.replyList = const [],
     this.hotReplyList = const [],
@@ -58,6 +64,7 @@ class TopicSinglePageState {
     int? maxFloor,
     bool? enablePullUp,
     bool? truncated,
+    int? cachedAt,
     Topic? topic,
     List<Reply>? replyList,
     List<Reply>? hotReplyList,
@@ -71,6 +78,7 @@ class TopicSinglePageState {
       maxFloor: maxFloor ?? this.maxFloor,
       enablePullUp: enablePullUp ?? this.enablePullUp,
       truncated: truncated ?? this.truncated,
+      cachedAt: cachedAt ?? this.cachedAt,
       topic: topic ?? this.topic,
       replyList: replyList ?? this.replyList,
       hotReplyList: hotReplyList ?? this.hotReplyList,
@@ -126,51 +134,82 @@ class TopicSinglePageNotifier extends Notifier<TopicSinglePageState> {
         key.page,
         key.authorid,
       );
-
-      List<Reply> replyList = [];
-      for (var reply in data.replyList.values) {
-        replyList.add(reply);
-      }
-
-      List<User> userList = data.userList.values.toList();
-      Set<Group> groups = data.groupList.values.toSet();
-      Set<Medal> medals = data.medalList.values.toSet();
-
-      // 正文先落地再取热评：热评是「精选区块」，每个 pid 一个请求，遇到
-      // 服务端截断还要走 0.9s/2.5s 的重试等待，串在首屏前会把打开帖子的
-      // 时间从一次请求拖成 N+1 次（用户看到的就是长时间转圈）。
-      state = TopicSinglePageState(
-        page: 1,
-        // 截断抢救的数据页数/总楼数不可信（entity 的 maxPage 已回退为 1）。
-        // 当前页至少是存在的（正在看的就是它），保底到当前页，避免
-        // TabBarView 因页数缩水把用户正在看的页挤掉；总楼数用已解析出的
-        // 最大楼层号顶上，界面上不至于显示 0。
-        maxPage: data.truncated && key.page > data.maxPage
-            ? key.page
-            : data.maxPage,
-        maxFloor: data.truncated
-            ? replyList.fold<int>(
-                0,
-                (max, reply) => (reply.lou ?? 0) > max ? (reply.lou ?? 0) : max,
-              )
-            : data.rows,
-        enablePullUp: 1 < data.maxPage,
-        truncated: data.truncated,
-        topic: data.topic,
-        replyList: replyList,
-        userList: userList,
-        groupSet: groups,
-        medalSet: medals,
-      );
-
-      if (key.page == 1 && data.hotReplies.isNotEmpty && key.authorid == null) {
-        unawaited(
-          _loadHotReplies(repository, data.hotReplies, generation: generation),
-        );
-      }
+      _applyData(data, generation: generation, cachedAt: null);
       return state;
     } catch (err) {
+      // 刷新失败：有缓存就展示缓存（stale-while-revalidate，对齐官方 App
+      // 的本地缓存兜底）。无缓存的首次加载没有内容可兜底，错误继续抛给
+      // 界面显示错误页。
+      try {
+        final repository = ref.read(topicRepositoryProvider);
+        final cached = await repository.getCachedTopicDetail(
+          key.tid,
+          key.page,
+          key.authorid,
+        );
+        if (cached != null) {
+          _applyData(
+            cached.data,
+            generation: generation,
+            cachedAt: cached.fetchedAt,
+          );
+          return state;
+        }
+      } catch (_) {
+        // 缓存读取失败：抛出原始错误
+      }
       rethrow;
+    }
+  }
+
+  void _applyData(
+    TopicDetailData data, {
+    required int generation,
+    required int? cachedAt,
+  }) {
+    final repository = ref.read(topicRepositoryProvider);
+
+    List<Reply> replyList = [];
+    for (var reply in data.replyList.values) {
+      replyList.add(reply);
+    }
+
+    List<User> userList = data.userList.values.toList();
+    Set<Group> groups = data.groupList.values.toSet();
+    Set<Medal> medals = data.medalList.values.toSet();
+
+    // 正文先落地再取热评：热评是「精选区块」，每个 pid 一个请求，遇到
+    // 服务端截断还要走 0.9s/2.5s 的重试等待，串在首屏前会把打开帖子的
+    // 时间从一次请求拖成 N+1 次（用户看到的就是长时间转圈）。
+    state = TopicSinglePageState(
+      page: 1,
+      // 截断抢救的数据页数/总楼数不可信（entity 的 maxPage 已回退为 1）。
+      // 当前页至少是存在的（正在看的就是它），保底到当前页，避免
+      // TabBarView 因页数缩水把用户正在看的页挤掉；总楼数用已解析出的
+      // 最大楼层号顶上，界面上不至于显示 0。
+      maxPage: data.truncated && key.page > data.maxPage
+          ? key.page
+          : data.maxPage,
+      maxFloor: data.truncated
+          ? replyList.fold<int>(
+              0,
+              (max, reply) => (reply.lou ?? 0) > max ? (reply.lou ?? 0) : max,
+            )
+          : data.rows,
+      enablePullUp: 1 < data.maxPage,
+      truncated: data.truncated,
+      cachedAt: cachedAt,
+      topic: data.topic,
+      replyList: replyList,
+      userList: userList,
+      groupSet: groups,
+      medalSet: medals,
+    );
+
+    if (key.page == 1 && data.hotReplies.isNotEmpty && key.authorid == null) {
+      unawaited(
+        _loadHotReplies(repository, data.hotReplies, generation: generation),
+      );
     }
   }
 

@@ -105,6 +105,7 @@ class TopicSinglePage extends HookConsumerWidget {
         child: Column(
           children: [
             if (state.truncated) _buildTruncatedBanner(context, onRefresh),
+            if (state.cachedAt != null) _buildCachedBanner(context, state),
             Expanded(
               // 大屏下楼层列表收窄居中；截断横幅仍在全宽顶部
               child: ReadableListPadding(
@@ -160,6 +161,49 @@ class TopicSinglePage extends HookConsumerWidget {
               TextButton(
                 onPressed: () => onRefresh(fromRetryButton: true),
                 child: const Text('重试'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 刷新失败但本地有缓存：展示缓存内容并明确告知「这不是实时数据」。
+  /// 对齐官方 App 的本地缓存兜底——它「看起来稳」的另一半就是刷新失败时
+  /// 旧内容继续可读、错误不顶到脸上。
+  Widget _buildCachedBanner(BuildContext context, TopicSinglePageState state) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final age = DateTime.now().millisecondsSinceEpoch - state.cachedAt!;
+    final String ago;
+    if (age < const Duration(hours: 1).inMilliseconds) {
+      ago = '${age ~/ const Duration(minutes: 1).inMilliseconds + 1} 分钟';
+    } else if (age < const Duration(days: 1).inMilliseconds) {
+      ago = '${age ~/ const Duration(hours: 1).inMilliseconds + 1} 小时';
+    } else {
+      ago = '${age ~/ const Duration(days: 1).inMilliseconds + 1} 天';
+    }
+    return Material(
+      color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
+      child: SafeArea(
+        top: false,
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Icon(
+                Icons.history,
+                size: 18,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '服务端暂时没有响应，正在显示 $ago 前的缓存内容，下拉可重试',
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
               ),
             ],
           ),
