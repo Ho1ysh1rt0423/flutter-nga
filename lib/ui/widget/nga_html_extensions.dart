@@ -67,6 +67,9 @@ class NgaHtml extends StatelessWidget {
         switch (element.localName) {
           case 'a':
             return {'color': primary};
+          case 'img':
+            // 贴内图片统一圆角，融入 M3 卡片语言
+            return {'border-radius': '12px'};
           case 'nga_dict':
             return {
               'color': primary,
@@ -523,7 +526,7 @@ class _NgaAlbum extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.8)),
       ),
       child: Column(
@@ -560,7 +563,7 @@ class _NgaHeadline extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -710,7 +713,7 @@ class _NgaCryptBlockState extends State<NgaCryptBlock> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: child,
     );
@@ -826,7 +829,7 @@ class _NgaQuoteBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Material(
         color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

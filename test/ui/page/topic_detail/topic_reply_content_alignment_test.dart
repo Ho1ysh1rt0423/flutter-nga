@@ -37,12 +37,15 @@ void main() {
 
     final screenWidth =
         tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    // 2026-11-22 楼层卡片化：楼层包在 10dp 外边距 + 16dp 内边距的 M3 卡片里
+    const cardMargin = 10.0;
+    const floorPadding = 16.0;
     final content = tester.getRect(find.byType(NgaHtmlContentWidget));
-    expect(content.left, 16);
-    expect(content.width, screenWidth - 32);
+    expect(content.left, cardMargin + floorPadding);
+    expect(content.width, screenWidth - 2 * (cardMargin + floorPadding));
     final text = tester.getRect(
       find.textContaining('短正文', findRichText: true).first,
     );
-    expect(text.left, 16);
+    expect(text.left, cardMargin + floorPadding);
   });
 }

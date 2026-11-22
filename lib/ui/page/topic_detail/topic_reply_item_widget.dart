@@ -376,11 +376,19 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
             ],
           ),
         ),
-        Divider(height: 1),
       ],
     );
 
-    return BlockedContent(mode: widget.blockMode, child: floor);
+    // M3 卡片式楼层：与帖子列表卡片同一语言（圆角 16 + surfaceContainerLow）
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
+      child: Material(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: BlockedContent(mode: widget.blockMode, child: floor),
+      ),
+    );
   }
 
   /// 隐藏模式的评论直接移除，其余评论连同各自的屏蔽模式一起返回
