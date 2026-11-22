@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 import 'package:flutter_nga/data/core/nga_domains.dart';
+import 'package:flutter_nga/data/core/nga_error_sampler.dart';
 import 'package:flutter_nga/data/entity/user.dart';
 import 'package:flutter_nga/data/repository/user_repository.dart';
 import 'package:flutter_nga/utils/code_utils.dart' as code_utils;
@@ -69,8 +70,10 @@ class NgaDioConfigurator {
 
   void configure(Dio dio) {
     _dio = dio;
-    dio.options.connectTimeout = const Duration(milliseconds: 10000);
-    dio.options.receiveTimeout = const Duration(milliseconds: 10000);
+    // 官方 App 的 connect/read/write 全部 15s（逆向 CommonOkHttpClient 所得）；
+    // 10s 在弱网下容易把慢响应误判成超时报错。
+    dio.options.connectTimeout = const Duration(milliseconds: 15000);
+    dio.options.receiveTimeout = const Duration(milliseconds: 15000);
     dio.options.responseType = ResponseType.bytes;
     dio.options.headers["Accept-Encoding"] = "gzip";
     dio.options.headers["Cache-Control"] = "max-age=0";
@@ -157,6 +160,10 @@ class NgaDioConfigurator {
         // 'Map<String, dynamic>?'"，用户看到的是一句天书。这里主动 reject
         // 成可读错误。
         response.requestOptions.extra[truncationRejectedKey] = true;
+        NgaErrorSampler.instance.sample(
+          'NGA 服务端返回的数据不完整（重试与抢救均失败）',
+          url: response.requestOptions.uri.toString(),
+        );
         handler.reject(
           DioException(
             requestOptions: response.requestOptions,
@@ -174,7 +181,21 @@ class NgaDioConfigurator {
 
     final dioError = _preHandleServerError(response, map);
     if (dioError != null) {
+      NgaErrorSampler.instance.sample(
+        dioError,
+        url: response.requestOptions.uri.toString(),
+      );
       handler.reject(dioError);
+      return;
+    }
+
+    final codeError = _preHandleCodeEnvelope(response, map);
+    if (codeError != null) {
+      NgaErrorSampler.instance.sample(
+        codeError,
+        url: response.requestOptions.uri.toString(),
+      );
+      handler.reject(codeError);
       return;
     }
 
@@ -207,6 +228,7 @@ class NgaDioConfigurator {
   ) async {
     debugPrint(e.toString());
     if (e.error is IOException) {
+      NgaErrorSampler.instance.sample(e, url: e.requestOptions.uri.toString());
       handler.next(
         DioException(
           requestOptions: e.requestOptions,
@@ -461,5 +483,44 @@ class NgaDioConfigurator {
       );
     }
     return null;
+  }
+
+  /// 官方 `app_api` / `__output=14` 系接口的业务错误信封：`{"code":N,"msg":..}`。
+  ///
+  /// 实测（2026-11-22，官方 APK 逆向 + 真机验证）：
+  /// - `code=0`：成功（如 o14 通知的 `{"code":0,"result":[...]}`），放行；
+  /// - `{"code":521,"html":..}`：官方 HTML 通道的**正常数据**（详情回退在用），
+  ///   带 html 键的放行；
+  /// - `code=12`：登录失效；`code=15`：访客受限；`code=4`：参数错误；
+  ///   纯 `521`（无 html）：风控挑战。
+  ///
+  /// 只拦截这四个已知错误码，其余信封原样透传——官方还有 `{"code":1,"__data":..}`
+  /// 这类成功信封，贸然按「非 0 即错」处理会把合法响应打崩。
+  DioException? _preHandleCodeEnvelope(
+    Response response,
+    Map<String, dynamic> map,
+  ) {
+    if (!map.containsKey("code") || map.containsKey("html")) return null;
+    final code = map["code"];
+    final intCode = code is int ? code : int.tryParse('$code');
+    if (intCode == null) return null;
+    const knownErrorCodes = {4, 12, 15, 521};
+    if (!knownErrorCodes.contains(intCode)) return null;
+    final msg = map["msg"]?.toString() ?? '';
+    final String error;
+    if (intCode == 12) {
+      error = '登录状态已失效，请重新登录';
+    } else if (intCode == 521) {
+      error = '触发站点安全验证，请稍后重试';
+    } else if (msg.isNotEmpty) {
+      error = msg;
+    } else {
+      error = '服务端返回错误码 $intCode';
+    }
+    return DioException(
+      requestOptions: response.requestOptions,
+      error: error,
+      type: DioExceptionType.unknown,
+    );
   }
 }
