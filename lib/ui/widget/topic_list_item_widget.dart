@@ -255,49 +255,54 @@ class TopicListItemWidget extends ConsumerWidget {
   /// 用 `.thumb.jpg` 缩略图地址，避免列表里直接拉原图（NGA 原图常有数 MB）。
   /// 点击跳到图片预览页，与帖子内图片的交互一致。
   Widget _buildAttachmentPreview(BuildContext context, List<String> urls) {
-    final widgets = <Widget>[];
-    for (final url in urls.take(Topic.maxListAttachmentCount)) {
-      widgets.add(
-        Expanded(
-          child: GestureDetector(
-            onTap: () => openPhotoPreview(context, url),
-            child: AspectRatio(
-              aspectRatio: 16 / 10,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: CachedNetworkImage(
-                  imageUrl: picture_utils.getThumbUrl(url),
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => ColoredBox(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
-                  ),
-                  errorWidget: (context, url, error) => ColoredBox(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
-                    child: Icon(
-                      Icons.broken_image_outlined,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+    // 单图限制尺寸（用户反馈全宽 16:10 太大），多图维持均分整行
+    if (urls.length == 1) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          width: 224,
+          height: 140,
+          child: _attachmentThumb(context, urls.first),
         ),
       );
     }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final (index, widget) in widgets.indexed) ...[
-          if (index > 0) const SizedBox(width: 6),
-          widget,
+        for (final url in urls.take(Topic.maxListAttachmentCount)) ...[
+          Expanded(
+            child: AspectRatio(
+              aspectRatio: 16 / 10,
+              child: _attachmentThumb(context, url),
+            ),
+          ),
+          if (url != urls.last) const SizedBox(width: 6),
         ],
       ],
+    );
+  }
+
+  Widget _attachmentThumb(BuildContext context, String url) {
+    return GestureDetector(
+      onTap: () => openPhotoPreview(context, url),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: CachedNetworkImage(
+          imageUrl: picture_utils.getThumbUrl(url),
+          fit: BoxFit.cover,
+          placeholder: (context, url) => ColoredBox(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
+          errorWidget: (context, url, error) => ColoredBox(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: Icon(
+              Icons.broken_image_outlined,
+              size: 20,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
