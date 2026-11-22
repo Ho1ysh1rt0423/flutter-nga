@@ -20,6 +20,10 @@ WebView 免验证码登录、首页双栏布局、Material You 动态取色、�
    以及「别 resurrect 的废弃方案」
 3. **`docs/DEV_GUIDE.md`** —— 环境导出、构建命令、真机排查、发布、上游同步流程、
    16 条实测坑清单 + 手势/转义 5 条细分
+4. **`docs/OFFICIAL_APK.md`** —— 官方 APK 逆向参考手册（接口总表 95+161 条、sign 公式、
+   NGA 专有 header、错误码 12/521 语义、**贴内正文 = WebView 渲染 HTML** 这一关键事实、
+   视频/登录链路、合规红线）。配套代码在 `reference/official-apk/`（同样本地未跟踪）。
+   **要给本 fork 加新功能、想知道「官方怎么做的」时先读这份**。
 
 > 本机开发**不用 mise**：直接用系统 `/d/Tools/flutter`（同为 3.50.0），命令不加前缀；
 > 下文 `mise exec --` 是上游 #39 的写法，等同 `flutter`。细节见 DEV_GUIDE 第一节。
