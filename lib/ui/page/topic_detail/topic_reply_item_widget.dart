@@ -661,6 +661,10 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
     columnWidgets.add(button);
     if (_attachmentsExpanded) {
       List<Widget> attachmentWidgets = [];
+      // 附件图组：同楼附件预览时可左右切换
+      final attachmentUrls = widget.reply.attachmentList
+          .map((a) => a.realUrl)
+          .toList();
       attachmentWidgets.addAll(
         widget.reply.attachmentList.map((attachment) {
           return Padding(
@@ -684,8 +688,14 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                   Material(
                     type: MaterialType.transparency,
                     child: InkWell(
-                      onTap: () =>
-                          Routes.openPhotoPreview(context, attachment.realUrl),
+                      onTap: () => Routes.openPhotoPreview(
+                        context,
+                        attachment.realUrl,
+                        urls: attachmentUrls,
+                        initialIndex: attachmentUrls.indexOf(
+                          attachment.realUrl,
+                        ),
+                      ),
                     ),
                   ),
                 ],

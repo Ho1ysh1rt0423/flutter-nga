@@ -1,18 +1,25 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_nga/utils/route.dart';
 
-/// 打开图片预览页（支持双指缩放 / 拖动）。
+/// 打开图片预览页（支持双指缩放 / 拖动 / 图组左右切换）。
 ///
-/// `screenWidth` 用于预览页计算初始缩放：图片比屏幕宽时按屏幕宽度铺满，
-/// 否则保持 1:1。缺它会退化成 0 倍缩放，页面只剩转圈，所以这里统一在
-/// 跳转时带上当前窗口宽度。
-Future<void> openPhotoPreview(BuildContext context, String? url) {
+/// [urls] / [initialIndex] 给多图场景用：贴内一组图片打开时可左右滑动切换。
+/// 单图调用只传 [url] 即可。
+///
+/// `screenWidth` 保留在跳转参数里供预览页布局参考。
+Future<void> openPhotoPreview(
+  BuildContext context,
+  String? url, {
+  List<String>? urls,
+  int initialIndex = 0,
+}) {
   final trimmed = url?.trim() ?? '';
   if (trimmed.isEmpty) return Future.value();
 
-  final screenWidth = MediaQuery.sizeOf(context).width;
-  return Routes.navigateToWithParams(context, Routes.PHOTO_PREVIEW, {
-    'url': trimmed,
-    'screenWidth': screenWidth.toStringAsFixed(2),
-  });
+  return Routes.openPhotoPreview(
+    context,
+    trimmed,
+    urls: urls,
+    initialIndex: initialIndex,
+  );
 }

@@ -255,6 +255,8 @@ class TopicListItemWidget extends ConsumerWidget {
   /// 用 `.thumb.jpg` 缩略图地址，避免列表里直接拉原图（NGA 原图常有数 MB）。
   /// 点击跳到图片预览页，与帖子内图片的交互一致。
   Widget _buildAttachmentPreview(BuildContext context, List<String> urls) {
+    // 本卡片展示的配图组（截断到最多 3 张，与渲染一致）
+    final galleryUrls = urls.take(Topic.maxListAttachmentCount).toList();
     // 单图限制尺寸（用户反馈全宽 16:10 太大），多图维持均分整行
     if (urls.length == 1) {
       return Align(
@@ -262,7 +264,11 @@ class TopicListItemWidget extends ConsumerWidget {
         child: SizedBox(
           width: 224,
           height: 140,
-          child: _attachmentThumb(context, urls.first),
+          child: _attachmentThumb(
+            context,
+            urls.first,
+            galleryUrls: galleryUrls,
+          ),
         ),
       );
     }
@@ -273,7 +279,7 @@ class TopicListItemWidget extends ConsumerWidget {
           Expanded(
             child: AspectRatio(
               aspectRatio: 16 / 10,
-              child: _attachmentThumb(context, url),
+              child: _attachmentThumb(context, url, galleryUrls: galleryUrls),
             ),
           ),
           if (url != urls.last) const SizedBox(width: 6),
@@ -282,9 +288,19 @@ class TopicListItemWidget extends ConsumerWidget {
     );
   }
 
-  Widget _attachmentThumb(BuildContext context, String url) {
+  Widget _attachmentThumb(
+    BuildContext context,
+    String url, {
+    required List<String> galleryUrls,
+  }) {
     return GestureDetector(
-      onTap: () => openPhotoPreview(context, url),
+      onTap: () => openPhotoPreview(
+        context,
+        url,
+        // 列表缩略图之间同样可左右切换（同一条帖子的配图构成一组）
+        urls: galleryUrls,
+        initialIndex: galleryUrls.indexOf(url),
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
         child: CachedNetworkImage(
