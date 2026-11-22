@@ -30,6 +30,7 @@ const Set<String> _newSettingsKeys = {
   PrefsKeys.visitedForums,
   PrefsKeys.uiHomeCategoryRail,
   PrefsKeys.themeDynamicColor,
+  PrefsKeys.uiUsernameUidHighlight,
 };
 
 Future<SharedPreferencesWithCache> _restartApp() async {

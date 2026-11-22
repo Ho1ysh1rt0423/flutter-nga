@@ -28,6 +28,9 @@ abstract final class PrefsKeys {
   /// 首页社区页用「左侧分类栏 + 右侧内容」双栏布局（对齐官方客户端）
   static const uiHomeCategoryRail = 'ui_homeCategoryRail';
 
+  /// UID 形式用户名的尾 4 字彩色高亮（上游原生行为），可在设置里关闭
+  static const uiUsernameUidHighlight = 'ui_usernameUidHighlight';
+
   // BlocklistSettingsNotifier
   static const blocklistClientBlockEnabled = 'blocklist_clientBlockEnabled';
   static const blocklistListBlockEnabled = 'blocklist_listBlockEnabled';
@@ -49,6 +52,7 @@ abstract final class PrefsKeys {
     uiLineHeight,
     uiEmoticonSize,
     uiHomeCategoryRail,
+    uiUsernameUidHighlight,
     blocklistClientBlockEnabled,
     blocklistListBlockEnabled,
     blocklistDetailsBlockEnabled,

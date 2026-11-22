@@ -51,6 +51,9 @@ class InterfaceSettingsState {
   /// false = 上游默认的顶部横向 Tab。
   final bool homeCategoryRail;
 
+  /// UID 形式用户名（`UID:xxxxxxxx`）的尾 4 字彩色高亮，上游原生行为。
+  final bool usernameUidHighlight;
+
   static const double defaultEmoticonSize = 24;
   static const double minEmoticonSize = 16;
   static const double maxEmoticonSize = 96;
@@ -61,6 +64,7 @@ class InterfaceSettingsState {
     this.lineHeight = CustomLineHeight.MEDIUM,
     this.emoticonSize = defaultEmoticonSize,
     this.homeCategoryRail = false,
+    this.usernameUidHighlight = true,
   });
 
   InterfaceSettingsState copyWith({
@@ -69,6 +73,7 @@ class InterfaceSettingsState {
     CustomLineHeight? lineHeight,
     double? emoticonSize,
     bool? homeCategoryRail,
+    bool? usernameUidHighlight,
   }) {
     return InterfaceSettingsState(
       contentSizeMultiple: contentSizeMultiple ?? this.contentSizeMultiple,
@@ -76,6 +81,7 @@ class InterfaceSettingsState {
       lineHeight: lineHeight ?? this.lineHeight,
       emoticonSize: emoticonSize ?? this.emoticonSize,
       homeCategoryRail: homeCategoryRail ?? this.homeCategoryRail,
+      usernameUidHighlight: usernameUidHighlight ?? this.usernameUidHighlight,
     );
   }
 }
@@ -104,6 +110,8 @@ class InterfaceSettingsNotifier extends Notifier<InterfaceSettingsState> {
         InterfaceSettingsState.defaultEmoticonSize;
     final homeCategoryRail =
         settings.getBool(PrefsKeys.uiHomeCategoryRail) ?? false;
+    final usernameUidHighlight =
+        settings.getBool(PrefsKeys.uiUsernameUidHighlight) ?? true;
 
     state = InterfaceSettingsState(
       contentSizeMultiple: contentSize,
@@ -114,6 +122,7 @@ class InterfaceSettingsNotifier extends Notifier<InterfaceSettingsState> {
         InterfaceSettingsState.maxEmoticonSize,
       ),
       homeCategoryRail: homeCategoryRail,
+      usernameUidHighlight: usernameUidHighlight,
     );
   }
 
@@ -125,6 +134,12 @@ class InterfaceSettingsNotifier extends Notifier<InterfaceSettingsState> {
     state = state.copyWith(emoticonSize: clamped);
     final settings = await _settings;
     await settings.setDouble(PrefsKeys.uiEmoticonSize, clamped);
+  }
+
+  Future<void> setUsernameUidHighlight(bool enabled) async {
+    state = state.copyWith(usernameUidHighlight: enabled);
+    final settings = await _settings;
+    await settings.setBool(PrefsKeys.uiUsernameUidHighlight, enabled);
   }
 
   Future<void> setHomeCategoryRail(bool enabled) async {

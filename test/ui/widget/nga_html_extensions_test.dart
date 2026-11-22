@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:material_ui/material_ui.dart';
@@ -13,9 +14,12 @@ final _theme = ThemeBuilder.buildLightTheme(Colors.brown);
 
 Future<void> _pumpHtml(WidgetTester tester, String html) async {
   await tester.pumpWidget(
-    MaterialApp(
-      theme: _theme,
-      home: Scaffold(body: SingleChildScrollView(child: NgaHtml(html))),
+    UncontrolledProviderScope(
+      container: ProviderContainer(),
+      child: MaterialApp(
+        theme: _theme,
+        home: Scaffold(body: SingleChildScrollView(child: NgaHtml(html))),
+      ),
     ),
   );
   await tester.pump();
@@ -238,14 +242,17 @@ void main() {
 
     Future<void> pumpBaselineRow(WidgetTester tester, List<Widget> children) {
       return tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: children,
+        UncontrolledProviderScope(
+          container: ProviderContainer(),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: children,
+              ),
             ),
           ),
         ),
@@ -355,13 +362,16 @@ void main() {
     Future<double> heightOf(WidgetTester tester, String ubb) async {
       final key = GlobalKey();
       await tester.pumpWidget(
-        MaterialApp(
-          theme: _theme,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: Column(
-                key: key,
-                children: [NgaHtml(NgaContentParser.parse(ubb))],
+        UncontrolledProviderScope(
+          container: ProviderContainer(),
+          child: MaterialApp(
+            theme: _theme,
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: Column(
+                  key: key,
+                  children: [NgaHtml(NgaContentParser.parse(ubb))],
+                ),
               ),
             ),
           ),

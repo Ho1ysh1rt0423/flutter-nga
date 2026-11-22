@@ -1,8 +1,11 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+
+import 'package:flutter_nga/providers/settings/interface_settings_provider.dart';
 import 'package:flutter_nga/utils/name_utils.dart' as name_utils;
 import 'package:flutter_nga/utils/route.dart';
 
-class UsernameText extends StatelessWidget {
+class UsernameText extends ConsumerWidget {
   const UsernameText({
     required this.username,
     this.uid,
@@ -29,12 +32,16 @@ class UsernameText extends StatelessWidget {
   String get _colorSeed => _hasValidUid ? '$uid' : username;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final displayName = name_utils.getShowName(username);
     final visibleText = '$displayName$suffix';
+    // UID 高亮是可关闭的界面设置（上游原生行为默认保留）
+    final uidHighlight = ref.watch(
+      interfaceSettingsProvider.select((s) => s.usernameUidHighlight),
+    );
     final nameParts = _UsernameParts.from(
       displayName,
-      highlightLastFour: username.startsWith('UID:'),
+      highlightLastFour: uidHighlight && username.startsWith('UID:'),
     );
     final textStyle = DefaultTextStyle.of(context).style.merge(style);
     // 颜色只在 UID: 尾 4 字高亮时才需要，普通用户名不再算色板

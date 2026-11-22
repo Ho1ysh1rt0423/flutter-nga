@@ -176,13 +176,30 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                         ),
                       ],
                     ),
-                    Wrap(
-                      children: [
-                        for (final stat in headerStats)
+                    Padding(
+                      // stats 换行时（长用户组名）避免楼号紧贴正文首行
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Wrap(
+                        children: [
+                          for (final stat in headerStats)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 16),
+                              child: Text(
+                                stat,
+                                style: TextStyle(
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color,
+                                  fontSize: Dimen.bodySmall,
+                                ),
+                              ),
+                            ),
+                          // 楼层号紧跟在发帖数右边（原先单独占一行挂在头像下面）
                           Padding(
-                            padding: const EdgeInsets.only(right: 16),
+                            padding: EdgeInsets.only(right: 16),
                             child: Text(
-                              stat,
+                              "[${widget.reply.lou} 楼]",
                               style: TextStyle(
                                 color: Theme.of(context)
                                     .textTheme
@@ -192,40 +209,27 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                               ),
                             ),
                           ),
-                        // 楼层号紧跟在发帖数右边（原先单独占一行挂在头像下面）
-                        Padding(
-                          padding: EdgeInsets.only(right: 16),
-                          child: Text(
-                            "[${widget.reply.lou} 楼]",
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.color,
-                              fontSize: Dimen.bodySmall,
-                            ),
-                          ),
-                        ),
-                        // 评论楼层标识
-                        if (widget.commentSource != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 0,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.secondaryContainer,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              "评论",
-                              style: TextStyle(
-                                color: colorScheme.onSecondaryContainer,
-                                fontSize: Dimen.labelSmall,
+                          // 评论楼层标识
+                          if (widget.commentSource != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 0,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.secondaryContainer,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                "评论",
+                                style: TextStyle(
+                                  color: colorScheme.onSecondaryContainer,
+                                  fontSize: Dimen.labelSmall,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                     if (widget.medalList?.isNotEmpty ?? false)
                       Padding(

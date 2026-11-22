@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -11,8 +12,11 @@ void main() {
     final semantics = tester.ensureSemantics();
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: UsernameText(username: username, uid: 1)),
+      UncontrolledProviderScope(
+        container: ProviderContainer(),
+        child: const MaterialApp(
+          home: Scaffold(body: UsernameText(username: username, uid: 1)),
+        ),
       ),
     );
 
@@ -29,8 +33,11 @@ void main() {
     final semantics = tester.ensureSemantics();
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: UsernameText(username: username, uid: 1)),
+      UncontrolledProviderScope(
+        container: ProviderContainer(),
+        child: const MaterialApp(
+          home: Scaffold(body: UsernameText(username: username, uid: 1)),
+        ),
       ),
     );
 
@@ -79,7 +86,12 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: ProviderContainer(),
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
     await tester.tap(find.byType(UsernameText));
     await tester.pumpAndSettle();
 
@@ -87,8 +99,11 @@ void main() {
     expect(find.byType(InkWell), findsNothing);
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: UsernameText(username: '', uid: 1)),
+      UncontrolledProviderScope(
+        container: ProviderContainer(),
+        child: const MaterialApp(
+          home: Scaffold(body: UsernameText(username: '', uid: 1)),
+        ),
       ),
     );
 
@@ -114,7 +129,12 @@ Future<Uri> _tapUsername(WidgetTester tester, UsernameText username) async {
     ],
   );
 
-  await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: ProviderContainer(),
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
   await tester.tap(find.byType(UsernameText));
   await tester.pumpAndSettle();
   return navigation;
