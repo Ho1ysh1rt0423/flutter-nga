@@ -31,10 +31,6 @@ dependencies:
   pretty_dio_logger: ^1.4.0
   fast_gbk: ^1.0.0
   sembast: ^3.10.1
-  # 登录 checksum 的 md5 与密码的 RSA 加密（官方账号体系）
-  crypto: ^3.0.6
-  encrypt: ^5.0.3
-  pointycastle: ^3.9.1
   flutter_widget_from_html_core: ^0.17.4
   html: ^0.15.7
   html_unescape: ^2.0.0
