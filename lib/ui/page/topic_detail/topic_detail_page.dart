@@ -166,8 +166,37 @@ class TopicDetailPage extends HookConsumerWidget {
       ),
       bottomNavigationBar: BottomAppBar(
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            IconButton(
+              tooltip: favourited ? '取消收藏' : '收藏',
+              isSelected: favourited,
+              icon: Icon(CommunityMaterialIcons.heart_outline),
+              selectedIcon: Icon(CommunityMaterialIcons.heart),
+              onPressed: state.favouriteBusy
+                  ? null
+                  : () {
+                      notifier
+                          .toggleFavourite()
+                          .then((message) {
+                            if (message != null) AppToast.success(message);
+                          })
+                          .catchError((e) {
+                            AppToast.error(e);
+                          });
+                    },
+            ),
+            IconButton(
+              tooltip: '回复',
+              icon: Icon(CommunityMaterialIcons.comment_outline),
+              onPressed: () {
+                if (fid == null && state.topic == null) return;
+                Routes.navigateTo(
+                  context,
+                  "${Routes.TOPIC_PUBLISH}?tid=$tid&fid=${fid ?? state.topic!.fid}",
+                );
+              },
+            ),
+            Spacer(flex: 1),
             IconButton(
               tooltip: '上一页',
               icon: Icon(Icons.chevron_left),
@@ -218,36 +247,6 @@ class TopicDetailPage extends HookConsumerWidget {
               onPressed: hasNext
                   ? () => goToPage(tabController.index + 1)
                   : null,
-            ),
-            Spacer(flex: 1),
-            IconButton(
-              tooltip: favourited ? '取消收藏' : '收藏',
-              isSelected: favourited,
-              icon: Icon(CommunityMaterialIcons.heart_outline),
-              selectedIcon: Icon(CommunityMaterialIcons.heart),
-              onPressed: state.favouriteBusy
-                  ? null
-                  : () {
-                      notifier
-                          .toggleFavourite()
-                          .then((message) {
-                            if (message != null) AppToast.success(message);
-                          })
-                          .catchError((e) {
-                            AppToast.error(e);
-                          });
-                    },
-            ),
-            IconButton(
-              tooltip: '回复',
-              icon: Icon(CommunityMaterialIcons.comment_outline),
-              onPressed: () {
-                if (fid == null && state.topic == null) return;
-                Routes.navigateTo(
-                  context,
-                  "${Routes.TOPIC_PUBLISH}?tid=$tid&fid=${fid ?? state.topic!.fid}",
-                );
-              },
             ),
           ],
         ),

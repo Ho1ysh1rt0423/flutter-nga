@@ -106,7 +106,7 @@ class ForumGroupTabsPage extends HookConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Material(
-            color: Theme.of(context).colorScheme.surfaceContainerLowest,
+            color: Theme.of(context).colorScheme.surface,
             child: SizedBox(
               width: 104,
               child: ListView.builder(
