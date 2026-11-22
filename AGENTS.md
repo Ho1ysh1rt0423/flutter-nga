@@ -9,8 +9,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 本仓库 = 上游 `loshine/flutter-nga` main（基点 `ef66014`，PR #34~#39）+ 一串本地定制提交
 （**★截断自动回退官方 17 通道**、截断抢救、错误归因/采样、详情页缓存兜底、
 WebView 免验证码登录、首页双栏布局、Material You 动态取色、贴内 M3 卡片化、
-列表配图、图片预览接线、UI 定制、深色启动屏、最近访问、首刷修复、长按复制、
-审计修复等；**具体条数与哈希用 `git log ef66014..main` 查，文档不写死数字**）。
+列表配图、图片预览接线 + 图组左右切换/长按保存面板、UI 定制、深色启动屏、
+最近访问、首刷修复、长按复制、审计修复等；
+**具体条数与哈希用 `git log ef66014..main` 查，文档不写死数字**）。
 改动前必读（均为本地未跟踪文件）：
 
 1. **`docs/PROJECT_MAP.md`** —— 架构拆解：每个模块在哪、负责什么、数据流、
@@ -18,13 +19,13 @@ WebView 免验证码登录、首页双栏布局、Material You 动态取色、�
 2. **`docs/LOCAL_FEATURES.md`** —— 对比上游的全部定制功能清单（文件/机制/测试/状态），
    以及「别 resurrect 的废弃方案」
 3. **`docs/DEV_GUIDE.md`** —— 环境导出、构建命令、真机排查、发布、上游同步流程、
-   16 条实测坑清单
+   16 条实测坑清单 + 手势/转义 5 条细分
 
 > 本机开发**不用 mise**：直接用系统 `/d/Tools/flutter`（同为 3.50.0），命令不加前缀；
 > 下文 `mise exec --` 是上游 #39 的写法，等同 `flutter`。细节见 DEV_GUIDE 第一节。
 
 硬性约定：
-- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 465 全过）必须复现；
+- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 473 全过）必须复现；
   定制功能的专属测试清单在 LOCAL_FEATURES.md——**红了 = 上游改动破坏了定制**。
 - **★最高优先保护对象：详情页截断自动回退官方 17 通道**（`html_topic_detail_parser.dart`
   + `topic_repository` 回退链 + `nga_dio_configurator` 的 `truncationRejectedKey`）。
