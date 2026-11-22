@@ -9,6 +9,7 @@ import 'package:flutter_nga/data/entity/topic_detail.dart';
 import 'package:flutter_nga/data/entity/topic_history.dart';
 import 'package:flutter_nga/data/entity/topic_tag.dart';
 import 'package:flutter_nga/utils/code_utils.dart' as code_utils;
+import 'package:flutter_nga/utils/parser/html_topic_detail_parser.dart';
 
 abstract class TopicRepository {
   Future<TopicListData> getTopicList({
@@ -230,17 +231,62 @@ class TopicDataRepository implements TopicRepository {
           extra: {NgaDioConfigurator.allowTruncatedRepairKey: true},
         ),
       );
-      return TopicDetailData.fromJson(
-        response.data!,
-        truncated:
-            response.requestOptions.extra[NgaDioConfigurator
-                .truncatedRepairedKey] ==
-            true,
-      );
+      final repaired =
+          response.requestOptions.extra[NgaDioConfigurator
+              .truncatedRepairedKey] ==
+          true;
+      if (repaired) {
+        // 抢救出的数据不完整。官方 App 详情页走 __output=17（服务端渲染的
+        // HTML 骨架，另一条序列化路径），截断发生在 8 通道时它通常还是好的
+        // ——尝试回退拿完整数据，拿不到再用抢救的部分。
+        try {
+          final fallback = await _getTopicDetailViaHtmlChannel(
+            tid: tid,
+            page: page,
+            authorid: authorid,
+          );
+          if (fallback != null) return fallback;
+        } catch (_) {
+          // 回退失败：继续用抢救出的部分数据
+        }
+      }
+      return TopicDetailData.fromJson(response.data!, truncated: repaired);
     } catch (err) {
+      if (_isTruncationReject(err)) {
+        try {
+          final fallback = await _getTopicDetailViaHtmlChannel(
+            tid: tid,
+            page: page,
+            authorid: authorid,
+          );
+          if (fallback != null) return fallback;
+        } catch (_) {
+          // 回退也失败：抛出原始的截断错误（提示语更明确）
+        }
+      }
       rethrow;
     }
   }
+
+  /// 官方 App 详情页用的输出格式（逆向自官方 APK）：服务端渲染的楼层骨架
+  /// + 原始 UBB，与 __output=8 的 JSON 序列化是不同代码路径。
+  Future<TopicDetailData?> _getTopicDetailViaHtmlChannel({
+    required int tid,
+    required int page,
+    int? authorid,
+  }) async {
+    final Response<Map<String, dynamic>> response = await _dio.get(
+      "read.php?tid=$tid&page=$page${authorid == null ? "" : "&authorid=$authorid"}&__localres=1&__output=17",
+      options: Options(extra: {NgaDioConfigurator.htmlChannelKey: true}),
+    );
+    return parseHtmlTopicDetail(response.data!, tid: tid, page: page);
+  }
+
+  bool _isTruncationReject(Object? err) =>
+      err is DioException &&
+      err.requestOptions.extra[NgaDioConfigurator.truncationRejectedKey] ==
+          true &&
+      err.requestOptions.extra[NgaDioConfigurator.htmlChannelKey] != true;
 
   @override
   Future<List<String>> getTopicHeadImageUrls(int tid) async {
@@ -319,16 +365,42 @@ class TopicDataRepository implements TopicRepository {
           extra: {NgaDioConfigurator.allowTruncatedRepairKey: true},
         ),
       );
-      return TopicDetailData.fromJson(
-        response.data!,
-        truncated:
-            response.requestOptions.extra[NgaDioConfigurator
-                .truncatedRepairedKey] ==
-            true,
-      );
+      final repaired =
+          response.requestOptions.extra[NgaDioConfigurator
+              .truncatedRepairedKey] ==
+          true;
+      if (repaired) {
+        // 同 getTopicDetail：抢救数据不完整时尝试官方 HTML 通道
+        try {
+          final fallback = await _getTopicRepliesViaHtmlChannel(pid: pid);
+          if (fallback != null) return fallback;
+        } catch (_) {
+          // 回退失败：继续用抢救出的部分数据
+        }
+      }
+      return TopicDetailData.fromJson(response.data!, truncated: repaired);
     } catch (err) {
+      if (_isTruncationReject(err)) {
+        try {
+          final fallback = await _getTopicRepliesViaHtmlChannel(pid: pid);
+          if (fallback != null) return fallback;
+        } catch (_) {
+          // 回退也失败：抛出原始的截断错误
+        }
+      }
       rethrow;
     }
+  }
+
+  /// pid 定位单楼的场景官方 HTML 通道同样支持（实测返回单层骨架）。
+  Future<TopicDetailData?> _getTopicRepliesViaHtmlChannel({
+    required int? pid,
+  }) async {
+    final Response<Map<String, dynamic>> response = await _dio.get(
+      "read.php?pid=$pid&__localres=1&__output=17",
+      options: Options(extra: {NgaDioConfigurator.htmlChannelKey: true}),
+    );
+    return parseHtmlTopicDetail(response.data!, tid: 0, page: 1);
   }
 
   @override

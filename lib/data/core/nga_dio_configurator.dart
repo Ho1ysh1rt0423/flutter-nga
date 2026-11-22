@@ -23,6 +23,15 @@ class NgaDioConfigurator {
   /// 记录「因响应被截断而重试」的次数，写在 [RequestOptions.extra] 里。
   static const String truncationRetryKey = 'nga_truncation_retry';
 
+  /// 截断响应在重试 + 抢救都失败、即将以可读错误 reject 时置为 true（写在
+  /// [RequestOptions.extra] 里）。仓库层据此触发「官方 HTML 通道」回退，
+  /// 而不是直接把错误抛给界面。
+  static const String truncationRejectedKey = 'nga_truncation_rejected';
+
+  /// 标记请求本身走的就是「官方 HTML 通道」（__output=17），仓库层用它防止
+  /// 回退请求失败后再次触发回退造成死循环。
+  static const String htmlChannelKey = 'nga_html_channel';
+
   /// 响应经 [repairTruncatedJson] 抢救后置为 true（写在 [RequestOptions.extra]
   /// 里）。仓库层据此把「数据不完整」往上层传，界面必须明确提示，不能把
   /// 抢救出来的部分当成完整内容展示。
@@ -147,6 +156,7 @@ class NgaDioConfigurator {
         // 转型处抛 "type 'String' is not a subtype of type
         // 'Map<String, dynamic>?'"，用户看到的是一句天书。这里主动 reject
         // 成可读错误。
+        response.requestOptions.extra[truncationRejectedKey] = true;
         handler.reject(
           DioException(
             requestOptions: response.requestOptions,

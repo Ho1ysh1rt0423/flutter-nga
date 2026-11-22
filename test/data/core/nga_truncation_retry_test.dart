@@ -83,6 +83,34 @@ void main() {
     );
   });
 
+  test(
+    'truncated reject carries truncationRejectedKey for the fallback',
+    () async {
+      // 重试+抢救全部失败后，reject 的 requestOptions.extra 必须带上
+      // truncationRejectedKey：仓库层靠它识别「该走官方 HTML 通道回退」。
+      final adapter = _TruncatingAdapter(
+        '{"data":{"__GLOBAL":{},"__T":{"tid":',
+        '{"data":{"__GLOBAL":{},"__T":{"tid":',
+      );
+      final dio = Dio()..options.baseUrl = 'https://bbs.nga.cn/';
+      dio.httpClientAdapter = adapter;
+      NgaDioConfigurator(() async => null).configure(dio);
+
+      Object? caught;
+      try {
+        await dio.get<Map<String, dynamic>>('read.php?__output=8&tid=1&page=1');
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught, isA<DioException>());
+      expect(
+        (caught as DioException).requestOptions.extra[NgaDioConfigurator
+            .truncationRejectedKey],
+        isTrue,
+      );
+    },
+  );
+
   test('retries carry the truncation counter in extra', () async {
     final adapter = _TruncatingAdapter('{"data":{"tid":', '{"data":{"ok":1}}');
     final dio = Dio()..options.baseUrl = 'https://bbs.nga.cn/';
