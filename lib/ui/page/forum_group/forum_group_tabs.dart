@@ -13,6 +13,7 @@ import 'package:flutter_nga/utils/dimen.dart';
 import 'package:flutter_nga/utils/hooks/easy_refresh_hooks.dart';
 import 'package:flutter_nga/utils/hooks/material_tab_controller_hook.dart';
 import 'package:flutter_nga/utils/hooks/scroll_to_top.dart';
+import 'package:flutter_nga/utils/motion.dart';
 
 import 'forum_category_page.dart';
 
@@ -107,8 +108,9 @@ class ForumGroupTabsPage extends HookConsumerWidget {
           Material(
             color: Theme.of(context).colorScheme.surfaceContainerLowest,
             child: SizedBox(
-              width: 76,
+              width: 96,
               child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 itemCount: tabLabels.length,
                 itemBuilder: (context, index) => _RailCategoryTile(
                   label: tabLabels[index],
@@ -148,7 +150,8 @@ class ForumGroupTabsPage extends HookConsumerWidget {
   }
 }
 
-/// 左侧分类栏的单个分类块：选中时左侧竖条 + 主色容器底，文字 2~3 行换行
+/// 左侧分类栏的单个分类块：M3 expressive 胶囊样式——选中时整块变为
+/// `secondaryContainer` 圆角胶囊（颜色带过渡动画），未选中透明。
 class _RailCategoryTile extends StatelessWidget {
   const _RailCategoryTile({
     required this.label,
@@ -163,34 +166,34 @@ class _RailCategoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? colorScheme.primaryContainer.withValues(alpha: 0.45)
-          : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(
-                color: selected ? colorScheme.primary : Colors.transparent,
-                width: 3,
+    return Padding(
+      // 横向留出胶囊与栏边缘的间距，纵向形成块间距
+      padding: const EdgeInsets.fromLTRB(10, 3, 10, 3),
+      child: AnimatedContainer(
+        duration: Motion.durationShort4,
+        curve: Motion.emphasizedDecelerate,
+        decoration: BoxDecoration(
+          color: selected ? colorScheme.secondaryContainer : Colors.transparent,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(28),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: selected
+                    ? colorScheme.onSecondaryContainer
+                    : colorScheme.onSurfaceVariant,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                height: 1.3,
               ),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: selected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              height: 1.25,
             ),
           ),
         ),
