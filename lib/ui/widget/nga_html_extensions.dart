@@ -1,10 +1,13 @@
 import 'package:flutter/rendering.dart' show RenderProxyBox;
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:html/dom.dart' as dom;
+import 'package:html/parser.dart' show parse;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_nga/providers/settings/interface_settings_provider.dart';
 import 'package:flutter_nga/ui/widget/collapse_widget.dart';
 import 'package:flutter_nga/ui/widget/nga_emoticon_image.dart';
+import 'package:flutter_nga/ui/widget/photo_gallery_scope.dart';
+import 'package:flutter_nga/ui/widget/photo_preview_launcher.dart';
 import 'package:flutter_nga/ui/widget/username_text.dart';
 import 'package:flutter_nga/utils/parser/content_parser.dart';
 import 'package:flutter_nga/utils/parser/nga_crypt.dart';
@@ -140,10 +143,15 @@ class NgaHtml extends StatelessWidget {
       // 被它劫持进预览而不是打开链接，rebase 后不要改回去。
     );
 
-    if (!selectable) return htmlWidget;
+    // 图组上下文：本段正文内所有可预览图片构成一组，预览页可左右切换。
+    final galleryUrls = _collectPreviewableImageUrls(html);
+    Widget wrapped = galleryUrls.length > 1
+        ? PhotoGalleryScope(urls: galleryUrls, child: htmlWidget)
+        : htmlWidget;
+    if (!selectable) return wrapped;
     // SelectionArea 提供选择注册器，fwfh 内部的 RichText 才会挂上
     // selectionRegistrar，长按才能选中并弹出系统复制菜单。
-    return SelectionArea(child: htmlWidget);
+    return SelectionArea(child: wrapped);
   }
 }
 
@@ -247,6 +255,33 @@ class RenderEmoticonBaseline extends RenderProxyBox {
 }
 
 /// 注册 NGA 自定义块级标签，并把图片加载 / 失败占位换成 material_ui 组件。
+/// 从已解析的 HTML 里按出现顺序收集可预览的图片地址（`<img>` 的 src）。
+///
+/// 只收普通正文图片：链接内的图片点击仍走链接（渲染层同样跳过），表情是
+/// 自定义组件不产生 `<img>`，因此这里与 [_NgaPreviewableImage] 的判断一致。
+/// package:html 已在依赖里（`html: ^0.15.7`），只用于这一处静态扫描。
+List<String> _collectPreviewableImageUrls(String html) {
+  if (!html.contains('<img')) return const [];
+  final document = parse(html);
+  final urls = <String>[];
+  final seen = <String>{};
+  for (final element in document.querySelectorAll('img')) {
+    final src = (element.attributes['src'] ?? '').trim();
+    if (src.isEmpty) continue;
+    // 与渲染层一致：祖先有 <a> 的图片不进预览组
+    var insideLink = false;
+    for (var parent = element.parent; parent != null; parent = parent.parent) {
+      if (parent.localName == 'a') {
+        insideLink = true;
+        break;
+      }
+    }
+    if (insideLink) continue;
+    if (seen.add(src)) urls.add(src);
+  }
+  return urls;
+}
+
 class NgaHtmlWidgetFactory extends WidgetFactory {
   BuildOp? _quoteOp;
   BuildOp? _albumOp;
@@ -504,7 +539,18 @@ class _NgaPreviewableImage extends StatelessWidget {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => Routes.openPhotoPreview(context, url),
+          onTap: () {
+            // 图组上下文：同段正文内多图时，预览页可左右切换
+            final gallery = PhotoGalleryScope.maybeOf(context);
+            final urls = gallery?.urls;
+            final index = urls?.indexOf(url) ?? -1;
+            openPhotoPreview(
+              context,
+              url,
+              urls: urls,
+              initialIndex: index < 0 ? 0 : index,
+            );
+          },
           child: child,
         ),
       ),

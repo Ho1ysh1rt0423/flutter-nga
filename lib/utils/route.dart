@@ -33,6 +33,12 @@ import 'package:url_launcher/url_launcher.dart';
 class Routes {
   static late GoRouter router;
 
+  /// 图片预览图组在查询参数里的分隔符。
+  ///
+  /// 用换行而非逗号/竖线：图片地址本身可能含 `,` 或 `|`（NGA 附件名常见），
+  /// 换行在 URL 编码后是 %0A，图片地址里不会出现换行，语义无歧义。
+  static const String photoGallerySeparator = '\n';
+
   static const String SPLASH = "/";
   static const String HOME = "/home";
   static const String LOGIN = "/login";
@@ -110,10 +116,23 @@ class Routes {
   }
 
   /// 打开图片预览页。[url] 作为查询参数编码，可含中文与 `?`、`&` 等字符。
-  static Future openPhotoPreview(BuildContext context, String url) {
+  ///
+  /// [urls] / [initialIndex] 给图组场景（贴内多图左右切换）用：传图组全部
+  /// 地址与当前下标，URL 以换行分隔放进 `urls` 参数（查询参数里换行安全，
+  /// 不会与图片地址中的 `&`/`?` 冲突）。
+  static Future openPhotoPreview(
+    BuildContext context,
+    String url, {
+    List<String>? urls,
+    int initialIndex = 0,
+  }) {
     return navigateToWithParams(context, PHOTO_PREVIEW, {
       'url': url,
       'screenWidth': '${MediaQuery.sizeOf(context).width}',
+      if (urls != null && urls.length > 1) ...{
+        'urls': urls.join(photoGallerySeparator),
+        'index': '$initialIndex',
+      },
     });
   }
 
@@ -314,12 +333,23 @@ List<GoRoute> buildRoutes() {
     GoRoute(
       path: Routes.PHOTO_PREVIEW,
       name: Routes.PHOTO_PREVIEW,
-      builder: (context, state) => PhotoPreviewPage(
-        url: state.uri.queryParameters["url"] ?? "",
-        screenWidth:
-            double.tryParse(state.uri.queryParameters["screenWidth"] ?? "") ??
-            0,
-      ),
+      builder: (context, state) {
+        final rawUrls = state.uri.queryParameters['urls'] ?? '';
+        final urls = rawUrls
+            .split(Routes.photoGallerySeparator)
+            .map((u) => u.trim())
+            .where((u) => u.isNotEmpty)
+            .toList();
+        return PhotoPreviewPage(
+          url: state.uri.queryParameters["url"] ?? "",
+          urls: urls.isEmpty ? null : urls,
+          initialIndex:
+              int.tryParse(state.uri.queryParameters['index'] ?? '') ?? 0,
+          screenWidth:
+              double.tryParse(state.uri.queryParameters["screenWidth"] ?? "") ??
+              0,
+        );
+      },
     ),
     GoRoute(
       path: Routes.CONVERSATION_DETAIL,
