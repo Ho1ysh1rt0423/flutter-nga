@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_nga/ui/widget/collapse_widget.dart';
 import 'package:flutter_nga/ui/widget/nga_emoticon_image.dart';
 import 'package:flutter_nga/ui/widget/nga_html_extensions.dart';
+import 'package:flutter_nga/ui/widget/photo_gallery_scope.dart';
 import 'package:flutter_nga/ui/widget/username_text.dart';
 import 'package:flutter_nga/utils/parser/content_parser.dart';
 import 'package:flutter_nga/utils/theme_builder.dart';
@@ -406,6 +407,50 @@ void main() {
         await heightOf(tester, 'a<br/><br/>b'),
         greaterThan(await heightOf(tester, 'a<br/>b')),
       );
+    });
+  });
+
+  group('photo gallery scope', () {
+    /// 取出当前树里的图组地址；没有 scope 时返回 null。
+    List<String>? galleryOf(WidgetTester tester) {
+      final scope = tester
+          .widgetList<PhotoGalleryScope>(find.byType(PhotoGalleryScope))
+          .firstOrNull;
+      return scope?.urls;
+    }
+
+    testWidgets('多图正文包 scope 并保序去重', (tester) async {
+      await _pumpHtml(
+        tester,
+        "<img src='https://img.nga.cn/a.jpg'/>"
+        "<img src='https://img.nga.cn/b.jpg'/>"
+        "<img src='https://img.nga.cn/a.jpg'/>",
+      );
+      expect(galleryOf(tester), [
+        'https://img.nga.cn/a.jpg',
+        'https://img.nga.cn/b.jpg',
+      ]);
+    });
+
+    testWidgets('单图不包 scope（不需要左右切换）', (tester) async {
+      await _pumpHtml(tester, "<img src='https://img.nga.cn/a.jpg'/>");
+      expect(galleryOf(tester), isNull);
+    });
+
+    testWidgets('链接内图片不进图组（点击仍走链接）', (tester) async {
+      await _pumpHtml(
+        tester,
+        "<a href='https://bbs.nga.cn/read.php?tid=1'>"
+        "<img src='https://img.nga.cn/a.jpg'/></a>"
+        "<img src='https://img.nga.cn/b.jpg'/>",
+      );
+      // 只剩链接外那一张 → 单图，不包 scope
+      expect(galleryOf(tester), isNull);
+    });
+
+    testWidgets('只有表情不收进图组', (tester) async {
+      await _pumpHtml(tester, '[s:8]表情[s:8]');
+      expect(galleryOf(tester), isNull);
     });
   });
 }
