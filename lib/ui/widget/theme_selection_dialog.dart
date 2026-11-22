@@ -74,6 +74,24 @@ class ThemeSelectionDialog extends ConsumerWidget {
               onTap: () => notifier.update(context, AdaptiveThemeMode.dark),
             ),
 
+            // 动态取色开关（Android 12+ Material You）
+            SwitchListTile(
+              title: Text(
+                "跟随系统取色",
+                style: textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              subtitle: Text(
+                "使用壁纸强调色（Material You），开启后忽略下方主题色预设",
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              value: state.dynamicColor,
+              onChanged: (v) => notifier.applyDynamicColor(context, v),
+            ),
+
             // 颜色设置区域
             const SizedBox(height: 16),
             Padding(

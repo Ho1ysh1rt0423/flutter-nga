@@ -16,6 +16,9 @@ abstract final class PrefsKeys {
   // ThemeNotifier
   static const seedColorValue = 'seed_color_value';
 
+  /// Material You 动态取色开关（Android 12+ 壁纸强调色）
+  static const themeDynamicColor = 'theme_dynamicColor';
+
   // InterfaceSettingsNotifier
   static const uiContentSizeMultiple = 'ui_contentSizeMultiple';
   static const uiTitleSizeMultiple = 'ui_titleSizeMultiple';
@@ -40,6 +43,7 @@ abstract final class PrefsKeys {
     userAgentConfigKey,
     customUserAgentValue,
     seedColorValue,
+    themeDynamicColor,
     uiContentSizeMultiple,
     uiTitleSizeMultiple,
     uiLineHeight,

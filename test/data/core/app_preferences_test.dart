@@ -29,6 +29,7 @@ const Map<String, Object> _legacySettings = {
 const Set<String> _newSettingsKeys = {
   PrefsKeys.visitedForums,
   PrefsKeys.uiHomeCategoryRail,
+  PrefsKeys.themeDynamicColor,
 };
 
 Future<SharedPreferencesWithCache> _restartApp() async {

@@ -1,4 +1,5 @@
 import 'package:adaptive_theme/adaptive_theme.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -21,11 +22,52 @@ class AppAdaptiveTheme extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final seedColor = ref.watch(themeProvider.select((s) => s.seedColor));
-    return AdaptiveTheme(
-      light: ThemeBuilder.buildLightTheme(seedColor),
-      dark: ThemeBuilder.buildDarkTheme(seedColor),
-      initial: initialMode ?? AdaptiveThemeMode.light,
-      builder: builder,
+    final dynamicEnabled = ref.watch(
+      themeProvider.select((s) => s.dynamicColor),
+    );
+
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) {
+        // 取到系统调色板后写入 notifier 供设置页运行期切换使用。
+        // 本 widget 通过 select 只订阅开关与主题色，写入不会引发重建循环。
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (lightDynamic != null) {
+            ref
+                .read(themeProvider.notifier)
+                .updateDynamicSchemes(
+                  ThemeBuilder.fromFlutterScheme(lightDynamic),
+                  darkDynamic == null
+                      ? null
+                      : ThemeBuilder.fromFlutterScheme(darkDynamic),
+                );
+          }
+        });
+
+        final useDynamic = dynamicEnabled && lightDynamic != null;
+        if (dynamicEnabled && lightDynamic == null) {
+          // 开关开启但系统调色板还没取到（首帧异步）：短暂等待一帧，
+          // 避免 AdaptiveTheme 用种子色初始化后无法切到动态主题
+          return ColoredBox(
+            color: Theme.of(context).colorScheme.surface,
+            child: const SizedBox.shrink(),
+          );
+        }
+
+        return AdaptiveTheme(
+          light: useDynamic
+              ? ThemeBuilder.buildLightDynamicTheme(
+                  ThemeBuilder.fromFlutterScheme(lightDynamic),
+                )
+              : ThemeBuilder.buildLightTheme(seedColor),
+          dark: useDynamic && darkDynamic != null
+              ? ThemeBuilder.buildDarkDynamicTheme(
+                  ThemeBuilder.fromFlutterScheme(darkDynamic),
+                )
+              : ThemeBuilder.buildDarkTheme(seedColor),
+          initial: initialMode ?? AdaptiveThemeMode.light,
+          builder: builder,
+        );
+      },
     );
   }
 }

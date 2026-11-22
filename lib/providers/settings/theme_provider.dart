@@ -42,8 +42,22 @@ class ThemeState {
   final AdaptiveThemeMode? mode;
   final Color seedColor;
 
-  ThemeState({this.mode, Color? seedColor})
-    : seedColor = seedColor ?? ThemeColors.defaultColor;
+  /// Material You 动态取色开关（Android 12+ 壁纸强调色）。开启且系统提供
+  /// 动态调色板时，主题色预设被忽略。
+  final bool dynamicColor;
+
+  /// 系统动态调色板（DynamicColorBuilder 取到后写入，亮/暗各一）。
+  /// null 表示系统不支持或尚未取到。
+  final ColorScheme? lightDynamicScheme;
+  final ColorScheme? darkDynamicScheme;
+
+  ThemeState({
+    this.mode,
+    Color? seedColor,
+    this.dynamicColor = false,
+    this.lightDynamicScheme,
+    this.darkDynamicScheme,
+  }) : seedColor = seedColor ?? ThemeColors.defaultColor;
 
   String get modeName {
     switch (mode) {
@@ -66,10 +80,19 @@ class ThemeState {
     return "自定义";
   }
 
-  ThemeState copyWith({AdaptiveThemeMode? mode, Color? seedColor}) {
+  ThemeState copyWith({
+    AdaptiveThemeMode? mode,
+    Color? seedColor,
+    bool? dynamicColor,
+    ColorScheme? lightDynamicScheme,
+    ColorScheme? darkDynamicScheme,
+  }) {
     return ThemeState(
       mode: mode ?? this.mode,
       seedColor: seedColor ?? this.seedColor,
+      dynamicColor: dynamicColor ?? this.dynamicColor,
+      lightDynamicScheme: lightDynamicScheme ?? this.lightDynamicScheme,
+      darkDynamicScheme: darkDynamicScheme ?? this.darkDynamicScheme,
     );
   }
 }
@@ -84,6 +107,36 @@ class ThemeNotifier extends Notifier<ThemeState> {
   @override
   ThemeState build() => _initialState ?? ThemeState();
 
+  /// DynamicColorBuilder 取到系统调色板后写入（不通知界面，避免重建循环
+  /// ——AppAdaptiveTheme 用 select 只订阅开关与主题色）。
+  void updateDynamicSchemes(ColorScheme? light, ColorScheme? dark) {
+    state = state.copyWith(lightDynamicScheme: light, darkDynamicScheme: dark);
+  }
+
+  /// 是否生效动态取色（开关开 + 系统给得出调色板）
+  bool get _dynamicColorActive =>
+      state.dynamicColor && state.lightDynamicScheme != null;
+
+  /// 运行期应用动态取色主题（设置页切换开关时调用，需 context）
+  Future<void> applyDynamicColor(BuildContext context, bool enabled) async {
+    state = state.copyWith(dynamicColor: enabled);
+    // AdaptiveTheme 引用要在 async gap（prefs 落盘）之前取好
+    final adaptiveTheme = AdaptiveTheme.of(context);
+    final prefs = await AppPreferences.instance();
+    await prefs.setBool(PrefsKeys.themeDynamicColor, enabled);
+    if (enabled && _dynamicColorActive) {
+      adaptiveTheme.setTheme(
+        light: ThemeBuilder.buildLightDynamicTheme(state.lightDynamicScheme!),
+        dark: ThemeBuilder.buildDarkDynamicTheme(state.darkDynamicScheme!),
+      );
+    } else {
+      adaptiveTheme.setTheme(
+        light: ThemeBuilder.buildLightTheme(state.seedColor),
+        dark: ThemeBuilder.buildDarkTheme(state.seedColor),
+      );
+    }
+  }
+
   /// 读取已保存的主题模式与主题色，可在 `runApp` 前调用。
   static Future<ThemeState> loadSaved() async {
     // 先取 AppPreferences：它会等待旧版设置迁移完成（含 adaptive_theme 的
@@ -91,7 +144,12 @@ class ThemeNotifier extends Notifier<ThemeState> {
     final prefs = await AppPreferences.instance();
     final mode = await AdaptiveTheme.getThemeMode();
     final seedColor = seedColorFromValue(prefs.getInt(_keySeedColorValue));
-    return ThemeState(mode: mode, seedColor: seedColor);
+    final dynamicColor = prefs.getBool(PrefsKeys.themeDynamicColor) ?? false;
+    return ThemeState(
+      mode: mode,
+      seedColor: seedColor,
+      dynamicColor: dynamicColor,
+    );
   }
 
   /// 把保存的 ARGB 值还原为颜色。
@@ -124,6 +182,11 @@ class ThemeNotifier extends Notifier<ThemeState> {
 
     final prefs = await AppPreferences.instance();
     await prefs.setInt(_keySeedColorValue, color.toARGB32());
+    // 选了预设色即视为放弃动态取色，避免动态调色板把预设盖掉
+    if (state.dynamicColor) {
+      state = state.copyWith(dynamicColor: false);
+      await prefs.setBool(PrefsKeys.themeDynamicColor, false);
+    }
     state = state.copyWith(seedColor: color);
 
     // Apply theme using AdaptiveTheme API
