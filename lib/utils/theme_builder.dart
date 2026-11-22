@@ -1,4 +1,10 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
+// 类型桥接：dynamic_color 返回 Flutter 的 ColorScheme，而本文件的 ColorScheme
+// 是 material_ui 复刻的独立类，必须引用 Flutter 侧类型做逐字段转换。
+// material_ui 迁移标记弃用了 flutter/material 导入，但此类型无替代公共导出，
+// 属于不可避免的桥接（不用于任何组件）。
+// ignore: deprecated_member_use
+import 'package:flutter/material.dart' as flutter_scheme show ColorScheme;
 import 'package:material_ui/material_ui.dart';
 
 /// 主题构建工具类
@@ -8,27 +14,32 @@ class ThemeBuilder {
   // 经典暗金/琥珀色：与棕色 primary 完美协调，更贴近 NGA 的经典质感，同时提供足够的亮度。
   static const _secondarySeed = Color(0xFFDCA965);
 
-  /// 仅为经典棕色主题提供暗金辅色；其他预设与系统动态配色保留 M3 原生和谐的
-  /// tonal secondary 色阶，避免选中胶囊与 primaryContainer 争夺焦点。
-  static Color? getSecondaryForSeed(Color seed, {bool isDynamic = false}) {
-    if (isDynamic) return null;
-    if (seed == Colors.brown) return _secondarySeed;
-    return null;
+  static Color getSecondaryForSeed(Color seed) {
+    if (seed == Colors.brown) return const Color(0xFFDCA965);
+    if (seed == Colors.blue) return Colors.lightBlue;
+    if (seed == Colors.teal) return Colors.cyan;
+    if (seed == Colors.green) return Colors.lightGreen;
+    if (seed == Colors.purple) return Colors.deepPurpleAccent;
+    if (seed == Colors.pink) return Colors.purpleAccent;
+    if (seed == Colors.orange) return Colors.amber;
+    if (seed == Colors.red) return Colors.deepOrange;
+    if (seed == Colors.indigo) return Colors.blueAccent;
+    if (seed == Colors.cyan) return Colors.lightBlueAccent;
+    return _secondarySeed;
   }
 
   /// 从 ColorScheme 构建 ThemeData
+  ///
+  /// [refineSecondary] 为 false 时不覆盖辅色系——Material You 动态取色的
+  /// 调色板自成体系，不应混入固定的琥珀辅色。
   static ThemeData buildTheme(
     ColorScheme baseColorScheme, [
     Color? secondarySeed,
-    double contrastLevel = 0.0,
+    bool refineSecondary = true,
   ]) {
-    final colorScheme = secondarySeed == null
-        ? baseColorScheme
-        : _withRefinedSecondary(
-            baseColorScheme,
-            secondarySeed,
-            contrastLevel: contrastLevel,
-          );
+    final colorScheme = refineSecondary
+        ? _withRefinedSecondary(baseColorScheme, secondarySeed)
+        : baseColorScheme;
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
@@ -139,7 +150,7 @@ class ThemeBuilder {
       ),
       // M3 NavigationBar Theme
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: colorScheme.surfaceContainer,
+        backgroundColor: colorScheme.surface,
         indicatorColor: colorScheme.secondaryContainer,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         height: 80,
@@ -160,68 +171,17 @@ class ThemeBuilder {
           color: colorScheme.onSurfaceVariant,
         ),
       ),
-      // M3 2024+ Slider 样式：垂直手柄 + 轨道间隙 + 拖动数值气泡
-      sliderTheme: SliderThemeData(
-        trackHeight: 16,
-        trackGap: 6,
-        trackShape: const GappedSliderTrackShape(),
-        thumbShape: const HandleThumbShape(),
-        thumbSize: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.dragged)) {
-            return const Size(2, 44);
-          }
-          return const Size(4, 44);
-        }),
-        valueIndicatorShape: const RoundedRectSliderValueIndicatorShape(),
-        showValueIndicator: ShowValueIndicator.onDrag,
-        activeTrackColor: colorScheme.primary,
-        inactiveTrackColor: colorScheme.secondaryContainer,
-        thumbColor: colorScheme.primary,
-        valueIndicatorColor: colorScheme.inverseSurface,
-        valueIndicatorTextStyle: TextStyle(
-          color: colorScheme.onInverseSurface,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      // M3 2024+ 进度条样式：圆角端点、轨道间隙与停顿点
-      progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: colorScheme.primary,
-        linearTrackColor: colorScheme.secondaryContainer,
-        circularTrackColor: colorScheme.secondaryContainer,
-        stopIndicatorColor: colorScheme.primary,
-        strokeCap: StrokeCap.round,
-        trackGap: 4,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      // M3 Switch：选中/未选中滑块图标，提升辨识度与色弱友好度
-      switchTheme: SwitchThemeData(
-        thumbIcon: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const Icon(Icons.check);
-          }
-          return const Icon(Icons.close);
-        }),
-      ),
-      // M3 SnackBar：悬浮圆角 + inverseSurface 色阶
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: colorScheme.inverseSurface,
-        contentTextStyle: TextStyle(color: colorScheme.onInverseSurface),
-        actionTextColor: colorScheme.inversePrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
     );
   }
 
   static ColorScheme _withRefinedSecondary(
-    ColorScheme base,
-    Color secondarySeed, {
-    double contrastLevel = 0.0,
-  }) {
+    ColorScheme base, [
+    Color? secondarySeed,
+  ]) {
+    final seed = secondarySeed ?? _secondarySeed;
     final accent = ColorScheme.fromSeed(
-      seedColor: secondarySeed,
+      seedColor: seed,
       brightness: base.brightness,
-      contrastLevel: contrastLevel,
     );
     return base.copyWith(
       secondary: accent.primary,
@@ -235,55 +195,85 @@ class ThemeBuilder {
     );
   }
 
+  /// 把 Flutter 的 ColorScheme 转成 material_ui fork 出来的同名类型。
+  ///
+  /// `dynamic_color` 包返回 Flutter 的 ColorScheme，而本文件的 ColorScheme
+  /// 是 material_ui 复刻的独立类（同名不同类型），必须逐字段转换。
+  /// （这里 import flutter/material 仅为桥接类型，不用于组件。）
+  static ColorScheme fromFlutterScheme(flutter_scheme.ColorScheme s) {
+    return ColorScheme(
+      brightness: s.brightness,
+      primary: s.primary,
+      onPrimary: s.onPrimary,
+      primaryContainer: s.primaryContainer,
+      onPrimaryContainer: s.onPrimaryContainer,
+      primaryFixed: s.primaryFixed,
+      onPrimaryFixed: s.onPrimaryFixed,
+      primaryFixedDim: s.primaryFixedDim,
+      onPrimaryFixedVariant: s.onPrimaryFixedVariant,
+      secondary: s.secondary,
+      onSecondary: s.onSecondary,
+      secondaryContainer: s.secondaryContainer,
+      onSecondaryContainer: s.onSecondaryContainer,
+      secondaryFixed: s.secondaryFixed,
+      onSecondaryFixed: s.onSecondaryFixed,
+      secondaryFixedDim: s.secondaryFixedDim,
+      onSecondaryFixedVariant: s.onSecondaryFixedVariant,
+      tertiary: s.tertiary,
+      onTertiary: s.onTertiary,
+      tertiaryContainer: s.tertiaryContainer,
+      onTertiaryContainer: s.onTertiaryContainer,
+      tertiaryFixed: s.tertiaryFixed,
+      onTertiaryFixed: s.onTertiaryFixed,
+      tertiaryFixedDim: s.tertiaryFixedDim,
+      onTertiaryFixedVariant: s.onTertiaryFixedVariant,
+      error: s.error,
+      onError: s.onError,
+      errorContainer: s.errorContainer,
+      onErrorContainer: s.onErrorContainer,
+      surface: s.surface,
+      onSurface: s.onSurface,
+      surfaceContainerLowest: s.surfaceContainerLowest,
+      surfaceContainerLow: s.surfaceContainerLow,
+      surfaceContainer: s.surfaceContainer,
+      surfaceContainerHigh: s.surfaceContainerHigh,
+      surfaceContainerHighest: s.surfaceContainerHighest,
+      surfaceDim: s.surfaceDim,
+      surfaceBright: s.surfaceBright,
+      onSurfaceVariant: s.onSurfaceVariant,
+      outline: s.outline,
+      outlineVariant: s.outlineVariant,
+      shadow: s.shadow,
+      scrim: s.scrim,
+      inverseSurface: s.inverseSurface,
+      onInverseSurface: s.onInverseSurface,
+      inversePrimary: s.inversePrimary,
+      surfaceTint: s.surfaceTint,
+    );
+  }
+
+  /// 动态取色直接构建（保留系统调色板的全部色板）
+  static ThemeData buildLightDynamicTheme(ColorScheme dynamicScheme) =>
+      buildTheme(dynamicScheme, null, false);
+
+  static ThemeData buildDarkDynamicTheme(ColorScheme dynamicScheme) =>
+      buildTheme(dynamicScheme, null, false);
+
   /// 从种子色构建亮色主题
-  static ThemeData buildLightTheme(
-    Color seedColor, {
-    bool isDynamic = false,
-    double contrastLevel = 0.0,
-  }) {
+  static ThemeData buildLightTheme(Color seedColor) {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: seedColor,
       brightness: Brightness.light,
-      contrastLevel: contrastLevel,
     );
-    return buildTheme(
-      colorScheme,
-      getSecondaryForSeed(seedColor, isDynamic: isDynamic),
-      contrastLevel,
-    );
+    return buildTheme(colorScheme, getSecondaryForSeed(seedColor));
   }
 
   /// 从种子色构建暗色主题
-  static ThemeData buildDarkTheme(
-    Color seedColor, {
-    bool isDynamic = false,
-    double contrastLevel = 0.0,
-  }) {
+  static ThemeData buildDarkTheme(Color seedColor) {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: seedColor,
       brightness: Brightness.dark,
-      contrastLevel: contrastLevel,
     );
-    return buildTheme(
-      colorScheme,
-      getSecondaryForSeed(seedColor, isDynamic: isDynamic),
-      contrastLevel,
-    );
-  }
-
-  /// 高对比度亮色主题（响应系统高对比度无障碍设置）
-  static ThemeData buildHighContrastLightTheme(
-    Color seedColor, {
-    bool isDynamic = false,
-  }) {
-    return buildLightTheme(seedColor, isDynamic: isDynamic, contrastLevel: 1.0);
-  }
-
-  /// 高对比度暗色主题（响应系统高对比度无障碍设置）
-  static ThemeData buildHighContrastDarkTheme(
-    Color seedColor, {
-    bool isDynamic = false,
-  }) {
-    return buildDarkTheme(seedColor, isDynamic: isDynamic, contrastLevel: 1.0);
+    return buildTheme(colorScheme, getSecondaryForSeed(seedColor));
   }
 }
