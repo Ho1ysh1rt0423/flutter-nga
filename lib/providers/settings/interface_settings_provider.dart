@@ -47,6 +47,10 @@ class InterfaceSettingsState {
   /// 帖子内容里表情的显示边长（px）。AC娘等表情按原尺寸渲染太小/太大时在此调。
   final double emoticonSize;
 
+  /// 首页社区页用「左侧分类栏 + 右侧内容」双栏布局（对齐官方客户端样式）。
+  /// false = 上游默认的顶部横向 Tab。
+  final bool homeCategoryRail;
+
   static const double defaultEmoticonSize = 24;
   static const double minEmoticonSize = 16;
   static const double maxEmoticonSize = 96;
@@ -56,6 +60,7 @@ class InterfaceSettingsState {
     this.titleSizeMultiple = 1.0,
     this.lineHeight = CustomLineHeight.MEDIUM,
     this.emoticonSize = defaultEmoticonSize,
+    this.homeCategoryRail = false,
   });
 
   InterfaceSettingsState copyWith({
@@ -63,12 +68,14 @@ class InterfaceSettingsState {
     double? titleSizeMultiple,
     CustomLineHeight? lineHeight,
     double? emoticonSize,
+    bool? homeCategoryRail,
   }) {
     return InterfaceSettingsState(
       contentSizeMultiple: contentSizeMultiple ?? this.contentSizeMultiple,
       titleSizeMultiple: titleSizeMultiple ?? this.titleSizeMultiple,
       lineHeight: lineHeight ?? this.lineHeight,
       emoticonSize: emoticonSize ?? this.emoticonSize,
+      homeCategoryRail: homeCategoryRail ?? this.homeCategoryRail,
     );
   }
 }
@@ -95,6 +102,8 @@ class InterfaceSettingsNotifier extends Notifier<InterfaceSettingsState> {
     final emoticonSize =
         settings.getDouble(PrefsKeys.uiEmoticonSize) ??
         InterfaceSettingsState.defaultEmoticonSize;
+    final homeCategoryRail =
+        settings.getBool(PrefsKeys.uiHomeCategoryRail) ?? false;
 
     state = InterfaceSettingsState(
       contentSizeMultiple: contentSize,
@@ -104,6 +113,7 @@ class InterfaceSettingsNotifier extends Notifier<InterfaceSettingsState> {
         InterfaceSettingsState.minEmoticonSize,
         InterfaceSettingsState.maxEmoticonSize,
       ),
+      homeCategoryRail: homeCategoryRail,
     );
   }
 
@@ -115,6 +125,12 @@ class InterfaceSettingsNotifier extends Notifier<InterfaceSettingsState> {
     state = state.copyWith(emoticonSize: clamped);
     final settings = await _settings;
     await settings.setDouble(PrefsKeys.uiEmoticonSize, clamped);
+  }
+
+  Future<void> setHomeCategoryRail(bool enabled) async {
+    state = state.copyWith(homeCategoryRail: enabled);
+    final settings = await _settings;
+    await settings.setBool(PrefsKeys.uiHomeCategoryRail, enabled);
   }
 
   Future<void> setContentSizeMultiple(double multiple) async {

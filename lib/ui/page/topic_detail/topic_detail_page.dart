@@ -1,4 +1,3 @@
-import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:community_material_icon/community_material_icon.dart';
 import 'package:flutter/gestures.dart' show DeviceGestureSettings;
 import 'package:flutter/services.dart';
@@ -6,7 +5,6 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_nga/providers/settings/theme_provider.dart';
 import 'package:flutter_nga/providers/topic/topic_detail_provider.dart';
 import 'package:flutter_nga/ui/page/topic_detail/topic_page_select_dialog.dart';
 import 'package:flutter_nga/ui/page/topic_detail/topic_single_page.dart';
@@ -137,7 +135,6 @@ class TopicDetailPage extends HookConsumerWidget {
 
     final hasPrevious = state.currentPage > 1;
     final hasNext = state.currentPage < state.maxPage;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final favourited = state.favourite == FavouriteStatus.favourited;
 
     return Scaffold(
@@ -223,21 +220,6 @@ class TopicDetailPage extends HookConsumerWidget {
                   : null,
             ),
             Spacer(flex: 1),
-            // 按当前实际亮度在日间 / 夜间之间切换，图标与提示显示切换目标。
-            IconButton(
-              tooltip: isDark ? '切换到日间模式' : '切换到夜间模式',
-              icon: Icon(
-                isDark
-                    ? CommunityMaterialIcons.weather_sunny
-                    : CommunityMaterialIcons.weather_night,
-              ),
-              onPressed: () => ref
-                  .read(themeProvider.notifier)
-                  .update(
-                    context,
-                    isDark ? AdaptiveThemeMode.light : AdaptiveThemeMode.dark,
-                  ),
-            ),
             IconButton(
               tooltip: favourited ? '取消收藏' : '收藏',
               isSelected: favourited,

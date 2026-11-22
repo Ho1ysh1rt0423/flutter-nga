@@ -196,7 +196,8 @@ void main() {
     );
     expect(button('上一页').onPressed, isNull);
     expect(button('下一页').onPressed, isNotNull);
-    expect(find.byTooltip('切换到夜间模式'), findsOneWidget);
+    // 底栏不再提供日夜切换按钮（走设置页），回归保护：别把它加回来
+    expect(find.byTooltip('切换到夜间模式'), findsNothing);
     expect(find.byTooltip('收藏'), findsOneWidget);
     expect(find.byTooltip('回复'), findsOneWidget);
 
@@ -206,31 +207,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('复制帖子链接'), findsOneWidget);
     expect(find.text('在浏览器中打开'), findsOneWidget);
-  });
-
-  testWidgets('dark theme offers switching to light', (tester) async {
-    final harness = _TopicRequestHarness();
-    final container = ProviderContainer(
-      overrides: [
-        topicSinglePageProvider.overrideWith2(harness.createNotifier),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: ThemeData(brightness: Brightness.dark),
-          home: const TopicDetailPage(2, 10),
-        ),
-      ),
-    );
-    await harness.waitForRefreshStart(
-      tester,
-      const TopicSinglePageKey(tid: 2, page: 1),
-    );
-    expect(find.byTooltip('切换到日间模式'), findsOneWidget);
   });
 
   testWidgets('body keeps a functional page-flip physics', (tester) async {
