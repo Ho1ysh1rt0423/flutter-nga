@@ -7,9 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## ⚠️ 本仓库是个人 fork —— 先读本地文档再动手
 
 本仓库 = 上游 `loshine/flutter-nga` main（基点 `ef66014`，PR #34~#39）+ 一串本地定制提交
-（截断抢救、列表配图、图片预览接线、UI 定制五项、深色启动屏、最近访问、
-首刷修复、长按复制、审计修复等；**具体条数与哈希用 `git log ef66014..main` 查，
-文档不写死数字**）。改动前必读（均为本地未跟踪文件）：
+（**★截断自动回退官方 17 通道**、截断抢救、错误归因/采样、详情页缓存兜底、
+WebView 免验证码登录、首页双栏布局、Material You 动态取色、贴内 M3 卡片化、
+列表配图、图片预览接线、UI 定制、深色启动屏、最近访问、首刷修复、长按复制、
+审计修复等；**具体条数与哈希用 `git log ef66014..main` 查，文档不写死数字**）。
+改动前必读（均为本地未跟踪文件）：
 
 1. **`docs/PROJECT_MAP.md`** —— 架构拆解：每个模块在哪、负责什么、数据流、
    rebase 冲突热点（第九节）
@@ -22,8 +24,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > 下文 `mise exec --` 是上游 #39 的写法，等同 `flutter`。细节见 DEV_GUIDE 第一节。
 
 硬性约定：
-- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 466 全过）必须复现；
+- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 465 全过）必须复现；
   定制功能的专属测试清单在 LOCAL_FEATURES.md——**红了 = 上游改动破坏了定制**。
+- **★最高优先保护对象：详情页截断自动回退官方 17 通道**（`html_topic_detail_parser.dart`
+  + `topic_repository` 回退链 + `nga_dio_configurator` 的 `truncationRejectedKey`）。
+  这是本 fork 存在感最强的定制：上游没实现同类功能前，rebase 中**任何**削弱它的
+  改动都不可接受。
+- **rebase 冲突必须让用户核对**：凡冲突涉及 LOCAL_FEATURES.md 清单里的定制功能
+  （尤其截断回退/错误归因/缓存兜底/免验证码登录/双栏布局/动态取色/贴内卡片化），
+  停下来把「上游改了什么、本地定制是什么、两种合并方案的取舍」讲给用户，
+  **不得自行取舍**。语义等价、纯上游内部演进的冲突才可直接采用上游。
 - **新增/修改功能后必须同步更新 `docs/LOCAL_FEATURES.md`**（功能清单是后续会话
   判断「哪些行为是定制的、不能被上游改动冲掉」的唯一依据），架构性变化同步
   `docs/PROJECT_MAP.md`。文档过期比没有文档更危险。
