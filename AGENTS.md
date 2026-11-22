@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > 下文 `mise exec --` 是上游 #39 的写法，等同 `flutter`。细节见 DEV_GUIDE 第一节。
 
 硬性约定：
-- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 432 全过）必须复现；
+- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 447 全过）必须复现；
   定制功能的专属测试清单在 LOCAL_FEATURES.md——**红了 = 上游改动破坏了定制**。
 - **新增/修改功能后必须同步更新 `docs/LOCAL_FEATURES.md`**（功能清单是后续会话
   判断「哪些行为是定制的、不能被上游改动冲掉」的唯一依据），架构性变化同步
