@@ -92,8 +92,7 @@ class ThemeState {
   }
 
   /// 当前颜色方案展示名（动态配色优先）
-  String get colorDisplayName =>
-      isDynamicColorActive ? "动态配色" : seedColorName;
+  String get colorDisplayName => isDynamicColorActive ? "动态配色" : seedColorName;
 
   ThemeState copyWith({
     AdaptiveThemeMode? mode,

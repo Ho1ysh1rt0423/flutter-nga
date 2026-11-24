@@ -747,10 +747,8 @@ class _TopicAuthorBadge extends StatelessWidget {
       ),
       child: Text(
         '楼主',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: colorScheme.primary,
-          height: 1.4,
-        ),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: colorScheme.primary, height: 1.4),
       ),
     );
   }

@@ -97,8 +97,7 @@ class PhotoPreviewPage extends HookConsumerWidget {
                   minScale: PhotoViewComputedScale.contained,
                   initialScale: PhotoViewComputedScale.contained,
                   // 点按切换顶部 chrome 显隐（上游 #41 的沉浸式交互）
-                  onTapUp: (_, _, _) =>
-                      showChrome.value = !showChrome.value,
+                  onTapUp: (_, _, _) => showChrome.value = !showChrome.value,
                 ),
                 loadingBuilder: (context, event) => const Center(
                   child: CircularProgressIndicator(color: Colors.white),
