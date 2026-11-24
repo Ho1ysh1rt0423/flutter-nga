@@ -16,8 +16,12 @@ abstract final class PrefsKeys {
   // ThemeNotifier
   static const seedColorValue = 'seed_color_value';
 
-  /// Material You 动态取色开关（Android 12+ 壁纸强调色）
-  static const themeDynamicColor = 'theme_dynamicColor';
+  /// Material You 动态取色开关（Android 12+ / macOS 系统强调色）。
+  ///
+  /// 键名与上游一致（`use_dynamic_color`）：本 fork 早期用过的
+  /// `theme_dynamicColor` 随 2026-11-24 rebase 废弃，老用户该开关回落为默认
+  /// 关，重新打开一次即可。
+  static const useDynamicColor = 'use_dynamic_color';
 
   // InterfaceSettingsNotifier
   static const uiContentSizeMultiple = 'ui_contentSizeMultiple';
@@ -46,7 +50,7 @@ abstract final class PrefsKeys {
     userAgentConfigKey,
     customUserAgentValue,
     seedColorValue,
-    themeDynamicColor,
+    useDynamicColor,
     uiContentSizeMultiple,
     uiTitleSizeMultiple,
     uiLineHeight,

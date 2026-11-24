@@ -1,17 +1,14 @@
 flutter_native_splash:
   color: "#FFF9E3"
-  # 深色模式：奶黄底在晚上太刺眼，改用默认棕色主题的深色 surface（#1A110E）
-  color_dark: "#1A110E"
+  color_dark: "#181210"
   # Pre-Android 12 / iOS：可用完整 logo
   image: images/launcher/icon_1024.png
-  # 深色版 logo 去掉了奶黄底板（透明），只剩奶白爪印，不会在深色屏上糊一块亮方块
   image_dark: images/launcher/splash_icon_dark_1024.png
   android_12:
     color: "#FFF9E3"
-    color_dark: "#1A110E"
+    color_dark: "#181210"
     # Android 12+ 圆形裁切，需使用留白更大的专用图
     image: images/launcher/splash_icon_1024.png
     image_dark: images/launcher/splash_icon_dark_1024.png
     icon_background_color: "#F5E8CB"
-    # 深色下图标底色跟背景同色，避免出现一块奶黄色圆盘
-    icon_background_color_dark: "#1A110E"
+    icon_background_color_dark: "#2B221E"

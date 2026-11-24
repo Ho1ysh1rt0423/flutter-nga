@@ -6,12 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ 本仓库是个人 fork —— 先读本地文档再动手
 
-本仓库 = 上游 `loshine/flutter-nga` main（基点 `ef66014`，PR #34~#39）+ 一串本地定制提交
+本仓库 = 上游 `loshine/flutter-nga` main（基点 `df87fe0`，PR #42 / 1.1.0）+ 一串本地定制提交
 （**★截断自动回退官方 17 通道**、截断抢救、错误归因/采样、详情页缓存兜底、
 WebView 免验证码登录、首页双栏布局、Material You 动态取色、贴内 M3 卡片化、
 列表配图、图片预览接线 + 图组左右切换/长按保存面板、UI 定制、深色启动屏、
 最近访问、首刷修复、长按复制、审计修复等；
-**具体条数与哈希用 `git log ef66014..main` 查，文档不写死数字**）。
+**具体条数与哈希用 `git log df87fe0..main` 查，文档不写死数字**）。
 改动前必读（均为本地未跟踪文件）：
 
 1. **`docs/PROJECT_MAP.md`** —— 架构拆解：每个模块在哪、负责什么、数据流、
@@ -29,7 +29,7 @@ WebView 免验证码登录、首页双栏布局、Material You 动态取色、�
 > 下文 `mise exec --` 是上游 #39 的写法，等同 `flutter`。细节见 DEV_GUIDE 第一节。
 
 硬性约定：
-- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 473 全过）必须复现；
+- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 501 全过）必须复现；
   定制功能的专属测试清单在 LOCAL_FEATURES.md——**红了 = 上游改动破坏了定制**。
 - **★最高优先保护对象：详情页截断自动回退官方 17 通道**（`html_topic_detail_parser.dart`
   + `topic_repository` 回退链 + `nga_dio_configurator` 的 `truncationRejectedKey`）。
@@ -158,4 +158,4 @@ Riverpod 3.x + flutter_hooks。Provider 全部基于 `Notifier` / `NotifierProvi
 - PR 触发 `.github/workflows/check.yml`：
   - `lint` job（仅 ubuntu）：`dart format --output=none --set-exit-if-changed lib test tool` 检查格式，`flutter analyze --no-pub` 要求 0 条问题（info 也会让 job 失败）。新增存放 Dart 源码的目录时，要同步加入格式检查的路径。
   - `check` job：在 ubuntu / windows / macos 上运行 `flutter test --no-pub test/`。
-- `build.yml` 在发版相关 PR 中验证 Android（Universal APK、分 ABI APK、AAB）、iOS、macOS、Windows、Linux 和 Web 构建。iOS 只做无签名编译检查，Web 只在 PR 中提供预览产物。推送版本 tag 时校验 `pubspec.yaml` 版本名，Android job 用 Environment「Android Build」的 `JKS`（base64）/ `STORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` 还原签名配置。Release job 只上传 Android 签名分 ABI APK（`arm64-v8a` / `armeabi-v7a` / `x86_64`）、Universal APK 和 AAB。缺少 Android 签名 Secrets 时构建失败。各平台产物和发版步骤见 README「发布新版本」。
+- `build.yml` 在发版相关 PR 中验证 Android、iOS、macOS、Windows、Linux 和 Web 构建。iOS 只做无签名编译检查，Web 只在 PR 中提供预览产物。推送版本 tag 时校验 `pubspec.yaml` 版本名，Android job 用 Environment「Android Build」的 `JKS`（base64）/ `STORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` 还原签名配置。Release job 只上传 Android 签名分 ABI APK（`arm64-v8a` / `armeabi-v7a` / `x86_64`）、Universal APK 和 AAB。缺少 Android 签名 Secrets 时构建失败。各平台产物和发版步骤见 README「发布新版本」。

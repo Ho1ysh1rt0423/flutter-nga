@@ -45,6 +45,21 @@ void main() {
     expect(find.text('图片地址为空'), findsOneWidget);
   });
 
+  testWidgets('沉浸式黑底，且不提供常驻下载按钮', (tester) async {
+    await tester.pumpWidget(
+      _wrap(const PhotoPreviewPage(url: 'https://img.nga.cn/a.jpg')),
+    );
+    await tester.pump();
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    expect(scaffold.backgroundColor, Colors.black);
+    expect(scaffold.extendBodyBehindAppBar, isTrue);
+    // 用户点名移除保存按钮：顶部 chrome 只有返回 + 标题。
+    expect(find.byIcon(Icons.download_outlined), findsNothing);
+    expect(find.byTooltip('保存图片'), findsNothing);
+    expect(find.byType(BackButton), findsOneWidget);
+  });
+
   test('PhotoGalleryScope.updateShouldNotify 只比较内容', () {
     const urls = ['a', 'b'];
     final same = PhotoGalleryScope(urls: urls, child: const SizedBox());

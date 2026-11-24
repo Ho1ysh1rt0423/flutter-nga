@@ -26,11 +26,14 @@ const Map<String, Object> _legacySettings = {
 
 /// fork 新增的设置 key：旧版本（ee86767）从未写过，因此不在迁移范围内，
 /// 但必须在 allowList 里（新增 key 必须在此显式登记，否则下面的守护会红）。
+///
+/// `PrefsKeys.useDynamicColor` 虽然来自上游 #41，但对旧版本同样是「没写过的
+/// 新 key」，语义一致，一起登记。
 const Set<String> _newSettingsKeys = {
   PrefsKeys.visitedForums,
   PrefsKeys.uiHomeCategoryRail,
-  PrefsKeys.themeDynamicColor,
   PrefsKeys.uiUsernameUidHighlight,
+  PrefsKeys.useDynamicColor,
 };
 
 Future<SharedPreferencesWithCache> _restartApp() async {

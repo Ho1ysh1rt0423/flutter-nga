@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:collection/collection.dart' show IterableExtension;
-import 'package:community_material_icon/community_material_icon.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
@@ -106,6 +105,7 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
     // 评论楼层使用真实评论内容渲染
     final contentReply = widget.commentSource ?? widget.reply;
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final thumbBg = colorScheme.surfaceContainerHigh;
     final thumbFgActive = colorScheme.primary;
     final thumbFgInactive = colorScheme.onSurfaceVariant;
@@ -186,26 +186,18 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                               padding: const EdgeInsets.only(right: 16),
                               child: Text(
                                 stat,
-                                style: TextStyle(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.color,
-                                  fontSize: Dimen.bodySmall,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ),
                           // 楼层号紧跟在发帖数右边（原先单独占一行挂在头像下面）
                           Padding(
-                            padding: EdgeInsets.only(right: 16),
+                            padding: const EdgeInsets.only(right: 16),
                             child: Text(
                               "[${widget.reply.lou} 楼]",
-                              style: TextStyle(
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.color,
-                                fontSize: Dimen.bodySmall,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -222,9 +214,8 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                               ),
                               child: Text(
                                 "评论",
-                                style: TextStyle(
+                                style: textTheme.labelSmall?.copyWith(
                                   color: colorScheme.onSecondaryContainer,
-                                  fontSize: Dimen.labelSmall,
                                 ),
                               ),
                             ),
@@ -254,10 +245,9 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
             padding: EdgeInsets.only(left: 16, right: 16, bottom: 8),
             child: Text(
               code_utils.unescapeHtml(widget.reply.subject),
-              style: TextStyle(
-                fontSize: Dimen.titleLarge,
+              style: textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).textTheme.bodyLarge?.color,
+                color: colorScheme.onSurface,
                 decoration: blockDecoration,
               ),
             ),
@@ -343,15 +333,14 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                       _reactionButton(
                         tooltip: "点赞",
                         icon: isLiked
-                            ? CommunityMaterialIcons.thumb_up
-                            : CommunityMaterialIcons.thumb_up_outline,
+                            ? Icons.thumb_up
+                            : Icons.thumb_up_outlined,
                         color: isLiked ? thumbFgActive : thumbFgInactive,
                         onPressed: _toggleLike,
                       ),
                       Text(
                         "${contentReply.score}",
-                        style: TextStyle(
-                          fontSize: Dimen.bodySmall,
+                        style: textTheme.bodySmall?.copyWith(
                           color: isLiked || isDisliked
                               ? thumbFgActive
                               : thumbFgInactive,
@@ -360,8 +349,8 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
                       _reactionButton(
                         tooltip: "点踩",
                         icon: isDisliked
-                            ? CommunityMaterialIcons.thumb_down
-                            : CommunityMaterialIcons.thumb_down_outline,
+                            ? Icons.thumb_down
+                            : Icons.thumb_down_outlined,
                         color: isDisliked ? thumbFgActive : thumbFgInactive,
                         onPressed: _toggleDislike,
                       ),
@@ -372,9 +361,8 @@ class _TopicReplyItemState extends ConsumerState<TopicReplyItemWidget> {
               Spacer(),
               Text(
                 widget.reply.postDate!,
-                style: TextStyle(
-                  fontSize: Dimen.bodySmall,
-                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -759,9 +747,8 @@ class _TopicAuthorBadge extends StatelessWidget {
       ),
       child: Text(
         '楼主',
-        style: TextStyle(
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: colorScheme.primary,
-          fontSize: Dimen.labelSmall,
           height: 1.4,
         ),
       ),

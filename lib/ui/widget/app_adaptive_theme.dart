@@ -1,5 +1,4 @@
 import 'package:adaptive_theme/adaptive_theme.dart';
-import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -13,6 +12,11 @@ import 'package:flutter_nga/utils/theme_builder.dart';
 /// `AdaptiveTheme.of(context).setTheme`（见 [ThemeNotifier.setSeedColor]）。
 /// 因此冷启动时 [themeProvider] 必须在首帧前就持有已保存的主题色，
 /// 由 `main()` 通过 [ThemeNotifier.loadSaved] 预读并注入。
+///
+/// 动态取色：平台强调色由 `DynamicColorService`（原生通道）在 `loadSaved()`
+/// 阶段一次性读取，写进 `ThemeState.dynamicSeedColor`；本 widget 只订阅推导
+/// 出的 `effectiveSeedColor` / `isDynamicColorActive`，不需要额外的调色板
+/// 桥接层。
 class AppAdaptiveTheme extends ConsumerWidget {
   const AppAdaptiveTheme({super.key, this.initialMode, required this.builder});
 
@@ -21,53 +25,17 @@ class AppAdaptiveTheme extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final seedColor = ref.watch(themeProvider.select((s) => s.seedColor));
-    final dynamicEnabled = ref.watch(
-      themeProvider.select((s) => s.dynamicColor),
+    final seedColor = ref.watch(
+      themeProvider.select((s) => s.effectiveSeedColor),
     );
-
-    return DynamicColorBuilder(
-      builder: (lightDynamic, darkDynamic) {
-        // 取到系统调色板后写入 notifier 供设置页运行期切换使用。
-        // 本 widget 通过 select 只订阅开关与主题色，写入不会引发重建循环。
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (lightDynamic != null) {
-            ref
-                .read(themeProvider.notifier)
-                .updateDynamicSchemes(
-                  ThemeBuilder.fromFlutterScheme(lightDynamic),
-                  darkDynamic == null
-                      ? null
-                      : ThemeBuilder.fromFlutterScheme(darkDynamic),
-                );
-          }
-        });
-
-        final useDynamic = dynamicEnabled && lightDynamic != null;
-        if (dynamicEnabled && lightDynamic == null) {
-          // 开关开启但系统调色板还没取到（首帧异步）：短暂等待一帧，
-          // 避免 AdaptiveTheme 用种子色初始化后无法切到动态主题
-          return ColoredBox(
-            color: Theme.of(context).colorScheme.surface,
-            child: const SizedBox.shrink(),
-          );
-        }
-
-        return AdaptiveTheme(
-          light: useDynamic
-              ? ThemeBuilder.buildLightDynamicTheme(
-                  ThemeBuilder.fromFlutterScheme(lightDynamic),
-                )
-              : ThemeBuilder.buildLightTheme(seedColor),
-          dark: useDynamic && darkDynamic != null
-              ? ThemeBuilder.buildDarkDynamicTheme(
-                  ThemeBuilder.fromFlutterScheme(darkDynamic),
-                )
-              : ThemeBuilder.buildDarkTheme(seedColor),
-          initial: initialMode ?? AdaptiveThemeMode.light,
-          builder: builder,
-        );
-      },
+    final isDynamic = ref.watch(
+      themeProvider.select((s) => s.isDynamicColorActive),
+    );
+    return AdaptiveTheme(
+      light: ThemeBuilder.buildLightTheme(seedColor, isDynamic: isDynamic),
+      dark: ThemeBuilder.buildDarkTheme(seedColor, isDynamic: isDynamic),
+      initial: initialMode ?? AdaptiveThemeMode.system,
+      builder: builder,
     );
   }
 }

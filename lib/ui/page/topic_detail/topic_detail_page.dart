@@ -1,4 +1,3 @@
-import 'package:community_material_icon/community_material_icon.dart';
 import 'package:flutter/gestures.dart' show DeviceGestureSettings;
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -10,6 +9,7 @@ import 'package:flutter_nga/ui/page/topic_detail/topic_page_select_dialog.dart';
 import 'package:flutter_nga/ui/page/topic_detail/topic_single_page.dart';
 import 'package:flutter_nga/utils/app_toast.dart';
 import 'package:flutter_nga/utils/code_utils.dart' as code_utils;
+import 'package:flutter_nga/utils/haptics.dart';
 import 'package:flutter_nga/utils/hooks/material_tab_controller_hook.dart';
 import 'package:flutter_nga/utils/nga_links.dart';
 import 'package:flutter_nga/utils/route.dart';
@@ -170,14 +170,18 @@ class TopicDetailPage extends HookConsumerWidget {
             IconButton(
               tooltip: favourited ? '取消收藏' : '收藏',
               isSelected: favourited,
-              icon: Icon(CommunityMaterialIcons.heart_outline),
-              selectedIcon: Icon(CommunityMaterialIcons.heart),
+              icon: const Icon(Icons.favorite_border),
+              selectedIcon: Icon(
+                Icons.favorite,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               onPressed: state.favouriteBusy
                   ? null
                   : () {
                       notifier
                           .toggleFavourite()
                           .then((message) {
+                            AppHaptics.selectionChanged();
                             if (message != null) AppToast.success(message);
                           })
                           .catchError((e) {
@@ -185,9 +189,11 @@ class TopicDetailPage extends HookConsumerWidget {
                           });
                     },
             ),
-            IconButton(
+            const SizedBox(width: 4),
+            // 图标采用上游 M3 语义图标，但位置仍按本 fork 定制（回复在左、翻页在右）。
+            IconButton.filledTonal(
               tooltip: '回复',
-              icon: Icon(CommunityMaterialIcons.comment_outline),
+              icon: const Icon(Icons.chat_bubble_outline),
               onPressed: () {
                 if (fid == null && state.topic == null) return;
                 Routes.navigateTo(
@@ -196,7 +202,7 @@ class TopicDetailPage extends HookConsumerWidget {
                 );
               },
             ),
-            Spacer(flex: 1),
+            const Spacer(flex: 1),
             IconButton(
               tooltip: '上一页',
               icon: Icon(Icons.chevron_left),
@@ -206,37 +212,32 @@ class TopicDetailPage extends HookConsumerWidget {
             ),
             Tooltip(
               message: '跳转页码',
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => TopicPageSelectDialog(
-                      currentPage: state.currentPage,
-                      maxPage: state.maxPage,
-                      maxFloor: state.maxFloor,
-                      pageSelectedCallback: (isPage, target) {
-                        final index = isPage
-                            ? target - 1
-                            : (target / 20 - 1).ceil();
-                        goToPage(
-                          index.clamp(0, tabController.length - 1).toInt(),
-                        );
-                      },
-                    ),
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                onPressed: () {
+                  TopicPageSelectDialog.show(
+                    context,
+                    currentPage: state.currentPage,
+                    maxPage: state.maxPage,
+                    maxFloor: state.maxFloor,
+                    pageSelectedCallback: (isPage, target) {
+                      final index = isPage
+                          ? target - 1
+                          : (target / 20 - 1).ceil();
+                      goToPage(
+                        index.clamp(0, tabController.length - 1).toInt(),
+                      );
+                    },
                   );
                 },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  child: Text(
-                    "${state.currentPage}/${state.maxPage}",
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
+                child: Text(
+                  "${state.currentPage}/${state.maxPage}",
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),

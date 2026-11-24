@@ -7,7 +7,7 @@ description: A new Flutter project.
 # Both the version and the builder number may be overridden in flutter
 # build by specifying --build-name and --build-number, respectively.
 # Read more about versioning at semver.org.
-version: 1.0.1+10001
+version: 1.1.0+10100
 
 environment:
   sdk: ">=3.13.0 <4.0.0"
@@ -31,8 +31,6 @@ dependencies:
   pretty_dio_logger: ^1.4.0
   fast_gbk: ^1.0.0
   sembast: ^3.10.1
-  # Material You 动态取色（Android 12+ 壁纸强调色）
-  dynamic_color: ^1.8.1
   flutter_widget_from_html_core: ^0.17.4
   html: ^0.15.7
   html_unescape: ^2.0.0
