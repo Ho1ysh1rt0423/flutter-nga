@@ -29,8 +29,10 @@ WebView 免验证码登录、首页双栏布局、Material You 动态取色、�
 > 下文 `mise exec --` 是上游 #39 的写法，等同 `flutter`。细节见 DEV_GUIDE 第一节。
 
 硬性约定：
-- 每次改动后 `flutter analyze`（基线 0 问题）+ `flutter test`（基线 501 全过）必须复现；
+- 每次改动后 `flutter analyze`（基线 0 问题，含 test/ 在内全项目）
+  + `flutter test`（基线 538 全过，94 个测试文件）必须复现；
   定制功能的专属测试清单在 LOCAL_FEATURES.md——**红了 = 上游改动破坏了定制**。
+  基线数字随新增用例上浮，以「无失败」为准，别把数字当门槛。
 - **★最高优先保护对象：详情页截断自动回退官方 17 通道**（`html_topic_detail_parser.dart`
   + `topic_repository` 回退链 + `nga_dio_configurator` 的 `truncationRejectedKey`）。
   这是本 fork 存在感最强的定制：上游没实现同类功能前，rebase 中**任何**削弱它的
