@@ -122,13 +122,37 @@ class TopicSinglePageNotifier extends Notifier<TopicSinglePageState> {
   /// 避免上一轮的慢请求把新一轮的楼层盖掉。
   int _generation = 0;
 
+  /// 本次会话内是否已经把本地缓存铺到 state 上过。
+  ///
+  /// 只在「首次进入且 state 为空」时用缓存打底（首屏缓存直出），之后的下拉
+  /// 刷新、重试按钮都必须走网络，否则旧缓存会盖住刚拿到的实时数据。
+  bool _hydrated = false;
+
   @override
   TopicSinglePageState build() => TopicSinglePageState.initial();
 
   Future<TopicSinglePageState> refresh() async {
     final generation = ++_generation;
+    final repository = ref.read(topicRepositoryProvider);
+
+    // 首屏缓存直出：先把上次成功响应的内容铺上，用户立刻有东西看，网络
+    // 请求随后在后台跑；成功回来会整体替换（cachedAt 归空、横幅消失）。
+    //
+    // 必须放在 refresh() 内部而不是 widget 层：详情页靠 EasyRefresh 的
+    // `refreshOnStart: state.replyList.isEmpty` 触发首刷，widget 层预填会让
+    // 这个判断永远为 false，首刷直接被跳过。
+    //
+    // ★ 缓存读与网络请求**并行**：sembast 读 + fromJson 是磁盘 + JSON 解析
+    // 开销（冷启动几十毫秒量级），先 await 它再发请求等于把这段白加在首字
+    // 延迟上。这里只把「是否首屏」判断出来，缓存读扔进 future 不等，网络
+    // 请求立刻发出；缓存回来时若网络还没回来就把内容铺上。
+    Future<({TopicDetailData data, int fetchedAt})?>? hydrating;
+    if (!_hydrated && state.replyList.isEmpty) {
+      _hydrated = true;
+      hydrating = _hydrateCache(repository, generation);
+    }
+
     try {
-      final repository = ref.read(topicRepositoryProvider);
       final data = await repository.getTopicDetail(
         key.tid,
         key.page,
@@ -141,12 +165,14 @@ class TopicSinglePageNotifier extends Notifier<TopicSinglePageState> {
       // 的本地缓存兜底）。无缓存的首次加载没有内容可兜底，错误继续抛给
       // 界面显示错误页。
       try {
-        final repository = ref.read(topicRepositoryProvider);
-        final cached = await repository.getCachedTopicDetail(
-          key.tid,
-          key.page,
-          key.authorid,
-        );
+        // 首屏那次缓存读可能还在路上，直接复用，不再重复查库
+        final cached =
+            await (hydrating ??
+                repository.getCachedTopicDetail(
+                  key.tid,
+                  key.page,
+                  key.authorid,
+                ));
         if (cached != null) {
           _applyData(
             cached.data,
@@ -212,14 +238,48 @@ class TopicSinglePageNotifier extends Notifier<TopicSinglePageState> {
         // 不发任何 pid 请求。这就是打开帖子少 1~4 次网络往返的来源。
         state = state.copyWith(hotReplyList: data.hotReplyList);
       } else if (cachedAt == null && data.hotReplies.isNotEmpty) {
-        // 老路：响应只有 pid 列表（o17 回退失败、只剩抢救数据时才会走到）。
-        // cachedAt != null 时跳过：缓存直出会立刻触发这条，让「先出缓存再
-        // 后台更新」反而多打 N 个请求且全是后台噪音；缓存里也没有内联热评
-        // （TopicDetailCache 存的是原始 o8 响应，当时有 hotreply 也已解析）。
+        // 老路：响应只有 pid 列表（o17 回退 / 老数据），逐 pid 拉正文。
+        //
+        // cachedAt != null 时跳过：首屏缓存直出（功能 13）会立刻触发这条，
+        // 让「先出缓存再后台更新」反而多打 N 个请求且全是后台噪音。
+        // 缓存里也没有内联热评（TopicDetailCache 存的是原始 o8 响应，若当时
+        // 有 hotreply 也已一并解析），所以缓存态的 pid 请求是没有收益的。
         unawaited(
           _loadHotReplies(repository, data.hotReplies, generation: generation),
         );
       }
+    }
+  }
+
+  /// 读本地缓存并把内容铺到 state 上（首屏直出）。
+  ///
+  /// **任何失败都当作没有缓存**：缓存只是锦上添花，读失败不能让首屏刷新
+  /// 整体崩掉。注意这里必须用 try/catch 而不是 `.catchError` —— 仓库实现
+  /// 可能在**同步阶段**就抛（例如假仓库的 noSuchMethod、真实实现里的参数
+  /// 校验），那种异常挂在 then/catchError 链之前就跑出来了。
+  Future<({TopicDetailData data, int fetchedAt})?> _hydrateCache(
+    TopicRepository repository,
+    int generation,
+  ) async {
+    try {
+      final cached = await repository.getCachedTopicDetail(
+        key.tid,
+        key.page,
+        key.authorid,
+      );
+      if (cached == null) return null;
+      // 网络结果先到就别再铺缓存（会在实时数据上闪一下旧内容）
+      if (generation != _generation || state.replyList.isNotEmpty) {
+        return cached;
+      }
+      _applyData(
+        cached.data,
+        generation: generation,
+        cachedAt: cached.fetchedAt,
+      );
+      return cached;
+    } catch (_) {
+      return null;
     }
   }
 

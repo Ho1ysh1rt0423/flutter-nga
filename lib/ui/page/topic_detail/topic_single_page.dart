@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter/gestures.dart' show DeviceGestureSettings;
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -47,7 +49,10 @@ class TopicSinglePage extends HookConsumerWidget {
     // 直接调 onRefresh，连点会并发多个请求互相覆盖状态
     final refreshing = useRef(false);
 
-    Future<IndicatorResult?> onRefresh({bool fromRetryButton = false}) async {
+    Future<IndicatorResult?> onRefresh({
+      bool fromRetryButton = false,
+      bool silent = false,
+    }) async {
       if (refreshing.value) return null;
       refreshing.value = true;
       try {
@@ -77,12 +82,35 @@ class TopicSinglePage extends HookConsumerWidget {
         if (!context.mounted) return null;
 
         refreshController.finishRefresh(IndicatorResult.fail);
-        AppToast.error(err);
+        // 静默刷新（重进帖子时的后台 revalidate）失败了不打扰用户：
+        // 旧内容已经可读，缓存提示条也还在。
+        if (!silent) AppToast.error(err);
         return IndicatorResult.fail;
       } finally {
         refreshing.value = false;
       }
     }
+
+    // 重进已看过的帖子：provider 不是 autoDispose，state 还在，于是
+    // `refreshOnStart` 为 false、`updateMetadata` 从未被调用 —— 而外层
+    // topicDetailProvider 是 autoDispose，页面关闭后重建时 maxPage 回 1，
+    // 结果就是底部页码永远停在「1/1」，只能手动下拉才恢复。
+    //
+    // 两步修：先把已有 state 的元数据补报上去（页码立刻正确、零请求），
+    // 再静默 revalidate 一次（不转圈不弹错），让新回复能刷出来。
+    usePostFrameEffect(() {
+      if (state.replyList.isEmpty) return;
+      // 直接用本次 build 里 watch 到的 state —— 不必、也不能去读 notifier.state
+      // （那是受保护成员，仅限 subclass / 测试使用）。
+      ref
+          .read(topicDetailProvider(detailProviderKey).notifier)
+          .updateMetadata(
+            maxPage: state.maxPage,
+            maxFloor: state.maxFloor,
+            topic: state.topic,
+          );
+      unawaited(onRefresh(silent: true));
+    });
 
     // 详情页把整块 TabBarView 的触摸斜率提到了 kPageFlipTouchSlop（翻页
     // 防误触）；列表的竖向滚动不该被波及，这里恢复默认斜率 —— 竞技场里
