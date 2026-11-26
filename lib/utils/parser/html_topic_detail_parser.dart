@@ -13,6 +13,10 @@ import 'package:flutter_nga/utils/json_cast.dart';
 ///   内容是**原始 UBB**（和 `__output=8` 的 `content` 字段同源）；
 /// - pid 在 `id='pid{pid}Anchor'` 锚点，作者 uid 在 `postauthor{N}` 的
 ///   `ucp&uid={uid}` 链接，发帖时间戳在楼层内联 JS 参数里；
+/// - 楼中楼评论在 `id='comment_for_{N}'` 段内（`div.comment_c`），
+///   热点回复在 `id='hightlight_for_{N}'` 段内，两者字段同构；
+/// - 附件在同层的 `ubbcode.attach.load('postattach{N}', ...)` 脚本参数里，
+///   与 `__output=8` 的 `attachs` 是同一批数据；
 /// - `commonui.userInfo.setAll({...})` 携带本页全部用户资料（键为 uid）；
 /// - `var __PAGE = {0:..., 1:总页数, 2:当前页, 3:每页行数}` 携带分页信息。
 ///
@@ -39,18 +43,24 @@ TopicDetailData? parseHtmlTopicDetail(
     }
   });
 
+  final fid = int.tryParse(
+    RegExp(r"__CURRENT_FID=parseInt\('(\d+)'\)").firstMatch(html)?.group(1) ??
+        '',
+  );
+
   final pageInfo = _extractPageInfo(html);
-  final floors = _extractFloors(html, page: page, perPage: pageInfo?.$2);
+  final floors = _extractFloors(
+    html,
+    page: page,
+    perPage: pageInfo?.$2,
+    tid: tid,
+    fid: fid,
+  );
   if (floors.isEmpty) return null;
 
   final perPage = pageInfo?.$2 ?? floors.length;
   final maxPage = pageInfo?.$1 ?? page;
   final rows = maxPage * perPage;
-
-  final fid = int.tryParse(
-    RegExp(r"__CURRENT_FID=parseInt\('(\d+)'\)").firstMatch(html)?.group(1) ??
-        '',
-  );
 
   final firstUid = floors.first.uid;
   final firstUser = firstUid == null ? null : rawUsers['$firstUid'];
@@ -77,9 +87,47 @@ TopicDetailData? parseHtmlTopicDetail(
       fid: fid,
       pid: floor.pid,
       lou: floor.lou,
-      commentList: const [],
-      attachmentList: const [],
+      commentList: floor.comments,
+      attachmentList: floor.attachments,
     );
+  }
+
+  // 热点回复只挂在主楼段落里（`hightlight_for_0`），等价于 o8 的
+  // `__R["0"]["hotreply"]`。HTML 侧不携带 lou，用同页楼层的 pid→lou
+  // 反查补上——热评通常就是本页某层，补不到为 null（跳转回落到 pid）。
+  final pidToLou = <int, int>{
+    for (final floor in floors)
+      if (floor.pid != null && floor.pid! > 0) floor.pid!: floor.lou,
+  };
+  final hotReplyList = <Reply>[];
+  for (final floor in floors) {
+    if (floor.hotReplies.isEmpty) continue;
+    for (final hot in floor.hotReplies) {
+      final lou = hot.pid == null ? null : pidToLou[hot.pid!];
+      hotReplyList.add(
+        lou == null || hot.lou == lou
+            ? hot
+            : (Reply(
+                content: hot.content,
+                alterInfo: hot.alterInfo,
+                tid: hot.tid,
+                score: hot.score,
+                score2: hot.score2,
+                postDate: hot.postDate,
+                authorId: hot.authorId,
+                subject: hot.subject,
+                type: hot.type,
+                fid: hot.fid,
+                pid: hot.pid,
+                recommend: hot.recommend,
+                lou: lou,
+                postDateTimestamp: hot.postDateTimestamp,
+                commentList: hot.commentList,
+                attachmentList: hot.attachmentList,
+              )),
+      );
+    }
+    break;
   }
 
   return TopicDetailData(
@@ -94,7 +142,11 @@ TopicDetailData? parseHtmlTopicDetail(
     replyPageRows: perPage,
     truncated: false,
     topic: topic,
-    hotReplies: const [],
+    hotReplies: [
+      for (final hot in hotReplyList)
+        if (hot.pid != null) hot.pid!,
+    ],
+    hotReplyList: hotReplyList,
   );
 }
 
@@ -107,6 +159,11 @@ class _HtmlFloor {
   final String? content;
   final String? postDate;
   final int? postDateTimestamp;
+  final List<Reply> comments;
+  final List<Attachment> attachments;
+
+  /// 本层下方「热点回复」段里的楼层（实测只出现在主楼）。
+  final List<Reply> hotReplies;
 
   const _HtmlFloor({
     required this.indexKey,
@@ -117,6 +174,9 @@ class _HtmlFloor {
     this.content,
     this.postDate,
     this.postDateTimestamp,
+    this.comments = const [],
+    this.attachments = const [],
+    this.hotReplies = const [],
   });
 }
 
@@ -128,6 +188,8 @@ List<_HtmlFloor> _extractFloors(
   String html, {
   required int page,
   int? perPage,
+  required int tid,
+  int? fid,
 }) {
   final rowMarks = RegExp(r"id='post1strow(\d+)'").allMatches(html).toList();
   final louPerPage = perPage ?? rowMarks.length;
@@ -152,9 +214,7 @@ List<_HtmlFloor> _extractFloors(
             .firstMatch(chunk)
             ?.group(1) ??
         '';
-    final content = RegExp(
-      "id='postcontent$n'[^>]*>([\\s\\S]*?)(?:</span>|</p>)",
-    ).firstMatch(chunk)?.group(1);
+    final content = _balancedInner(chunk, 'postcontent$n');
     final postDate =
         RegExp("id='postdate$n'[^>]*>([^<]*)<").firstMatch(chunk)?.group(1) ??
         '';
@@ -176,10 +236,243 @@ List<_HtmlFloor> _extractFloors(
         content: content,
         postDate: postDate,
         postDateTimestamp: postDateTimestamp,
+        comments: _extractCommentBlocks(
+          _commentRegion(chunk, n),
+          tid: tid,
+          fid: fid,
+        ),
+        attachments: _extractAttachments(chunk, n),
+        hotReplies: _extractCommentBlocks(
+          _hotReplyRegion(chunk, n),
+          tid: tid,
+          fid: fid,
+        ),
       ),
     );
   }
   return floors;
+}
+
+/// `id='comment_for_{N}'` 到 `id='hightlight_for_{N}'`（或楼层末尾）之间是
+/// 楼中楼评论。两段标记缺失时返回空串。
+String _commentRegion(String chunk, int n) {
+  final open = RegExp("id='comment_for_$n'").firstMatch(chunk);
+  if (open == null) return '';
+  final hot = RegExp("id='hightlight_for_$n'").firstMatch(chunk);
+  final end = hot == null || hot.start < open.start ? chunk.length : hot.start;
+  if (open.start >= end) return '';
+  return chunk.substring(open.start, end);
+}
+
+/// `id='hightlight_for_{N}'` 之后到楼层末尾是「热点回复」段。
+String _hotReplyRegion(String chunk, int n) {
+  final hot = RegExp("id='hightlight_for_$n'").firstMatch(chunk);
+  if (hot == null) return '';
+  return chunk.substring(hot.start);
+}
+
+/// 解析 `div.comment_c` 块列表（评论与热评结构同构）。
+///
+/// 每块以 `id='commentposterinfo{suffix}'` 开头，块内字段：
+/// - `id='commentauthor{suffix}'` 链接里的 `ucp&uid=` → 作者；
+/// - `id='postcommentsubject{suffix}'` / `id='postcomment{suffix}'` → 标题 / 正文；
+/// - `id='commentInfo{suffix}'` 里的 `title='reply time'` → 发帖时间；
+/// - 块尾 `commonui.postArg.proc('<suffix>', ...)` 是**权威来源**：
+///   `...,null,null,{pid},{type},null,'{uid}',{ts},'{recommend,score,score2}',...`。
+///
+/// 热评的 suffix 形如 `__888980001`（双下划线），普通评论是 `_889118304`。
+/// 但**不能用 suffix 猜 type**：实测 `__888981581` 的 type 是 64，按
+/// 「热评=0/评论=1」猜会错，type 一律从 proc 参数取。
+List<Reply> _extractCommentBlocks(String region, {required int tid, int? fid}) {
+  if (region.isEmpty) return const [];
+  final marks = RegExp(r"id='commentposterinfo(_+\d+)'")
+      .allMatches(region)
+      .toList();
+  final result = <Reply>[];
+  for (var i = 0; i < marks.length; i++) {
+    final start = marks[i].start;
+    final end = i + 1 < marks.length ? marks[i + 1].start : region.length;
+    if (start >= end) continue;
+    final block = region.substring(start, end);
+    final suffix = marks[i].group(1)!;
+
+    // `postArg.proc( '<suffix>', ... )` 的参数体
+    final proc = RegExp(r"postArg\.proc\(\s*'_*\d+',([\s\S]*?)\)\s*</script>")
+        .firstMatch(block)
+        ?.group(1);
+    // `null,null,{pid},{type},`
+    final pidType = proc == null
+        ? null
+        : RegExp(r"null,null,(\d+),(-?\d+),").firstMatch(proc);
+    final pid =
+        int.tryParse(pidType?.group(1) ?? '') ??
+        int.tryParse(suffix.replaceAll('_', ''));
+    // pid 解析不出就没法跳转/去重，整块丢掉比塞进无 pid 的评论更安全
+    if (pid == null || pid <= 0) continue;
+
+    // `'{uid}',{ts},'{recommend,score,score2}'`（proc 缺失时逐项回落）
+    final identity = proc == null
+        ? null
+        : RegExp(r"'(\d+)',(\d{9,}),'(-?\d+),(-?\d+),(-?\d+)'")
+              .firstMatch(proc);
+    final uid =
+        int.tryParse(identity?.group(1) ?? '') ??
+        int.tryParse(
+          RegExp(r"ucp&uid=(\d+)").firstMatch(block)?.group(1) ?? '',
+        );
+    final postDateTimestamp =
+        int.tryParse(identity?.group(2) ?? '') ??
+        int.tryParse(
+          RegExp(r",'(\d{5,})',(\d{9,}),").firstMatch(block)?.group(2) ?? '',
+        );
+    final score =
+        int.tryParse(identity?.group(4) ?? '') ??
+        int.tryParse(
+          RegExp(r"'(-?\d+),(-?\d+),(-?\d+)'").firstMatch(block)?.group(2) ??
+              '',
+        );
+
+    final subject = _balancedInner(block, 'postcommentsubject$suffix') ?? '';
+    final content = _balancedInner(block, 'postcomment$suffix') ?? '';
+    final postDate =
+        RegExp(
+          "id='commentInfo${RegExp.escape(suffix)}'[\\s\\S]*?<span[^>]*>([^<]*)<",
+        ).firstMatch(block)?.group(1) ??
+        '';
+
+    result.add(
+      Reply(
+        content: content,
+        tid: tid,
+        fid: fid,
+        pid: pid,
+        authorId: uid,
+        subject: subject,
+        postDate: postDate,
+        postDateTimestamp: postDateTimestamp,
+        score: score ?? 0,
+        type: int.tryParse(pidType?.group(2) ?? ''),
+        lou: 0,
+        commentList: const [],
+        attachmentList: const [],
+      ),
+    );
+  }
+  return result;
+}
+
+/// 解析同层 `ubbcode.attach.load('postattach{N}','postcontent{N}',[ {...} ], ...)`。
+///
+/// 数组元素是 JS 对象字面量（键无引号、值单引号），不是合法 JSON，
+/// 逐对象抓 `键:'值'` 即可；字段与 o8 的 `attachs` 一一对应。
+List<Attachment> _extractAttachments(String chunk, int n) {
+  final marker = RegExp("ubbcode\\.attach\\.load\\('postattach$n'")
+      .firstMatch(chunk);
+  if (marker == null) return const [];
+  final arrayStart = chunk.indexOf('[', marker.end);
+  if (arrayStart < 0) return const [];
+  final arrayBody = _jsArrayBody(chunk, arrayStart);
+  if (arrayBody == null) return const [];
+
+  final result = <Attachment>[];
+  for (final object in _jsObjects(arrayBody)) {
+    final fields = <String, String>{};
+    for (final m in RegExp(r"(\w+)\s*:\s*'([^']*)'").allMatches(object)) {
+      fields[m.group(1)!] = m.group(2)!;
+    }
+    final url = fields['url'];
+    if (url == null || url.isEmpty) continue;
+    final slash = url.lastIndexOf('/');
+    final dot = url.lastIndexOf('.');
+    result.add(
+      Attachment(
+        attachUrl: url,
+        size: int.tryParse(fields['size'] ?? ''),
+        type: fields['type'],
+        urlUtf8OrgName: fields['url_utf8_org_name'],
+        dscp: fields['dscp'],
+        path: slash > 0 ? url.substring(0, slash) : null,
+        name: fields['name'],
+        ext: dot > slash && dot >= 0 ? url.substring(dot + 1) : null,
+        thumb: int.tryParse(fields['thumb'] ?? ''),
+      ),
+    );
+  }
+  return result;
+}
+
+/// 从 [start]（指向 `[`）起扫描到配平的 `]`，返回中间内容。
+/// 跳过单引号字符串内的括号，避免文件名里的 `]` 提前结束。
+String? _jsArrayBody(String source, int start) {
+  var depth = 0;
+  var inString = false;
+  for (var i = start; i < source.length; i++) {
+    final ch = source[i];
+    if (inString) {
+      if (ch == "'") inString = false;
+      continue;
+    }
+    if (ch == "'") {
+      inString = true;
+    } else if (ch == '[') {
+      depth++;
+    } else if (ch == ']') {
+      depth--;
+      if (depth == 0) return source.substring(start + 1, i);
+    }
+  }
+  return null;
+}
+
+/// 切出数组里的每个 `{...}` 对象（同样跳过字符串内的花括号）。
+Iterable<String> _jsObjects(String source) sync* {
+  var depth = 0;
+  var inString = false;
+  var objectStart = -1;
+  for (var i = 0; i < source.length; i++) {
+    final ch = source[i];
+    if (inString) {
+      if (ch == "'") inString = false;
+      continue;
+    }
+    if (ch == "'") {
+      inString = true;
+    } else if (ch == '{') {
+      if (depth == 0) objectStart = i;
+      depth++;
+    } else if (ch == '}') {
+      depth--;
+      if (depth == 0 && objectStart >= 0) {
+        yield source.substring(objectStart, i + 1);
+        objectStart = -1;
+      }
+    }
+  }
+}
+
+/// 取出 `id='{id}'` 标签的完整内容（按同名标签配平扫描）。
+///
+/// 不能用「非贪婪 + 遇到第一个 `</span>`/`</p>`」：正文里一旦出现嵌套
+/// `<span>`（`[color]`、折叠、引用被服务端渲染成标签时就会），非贪婪匹配
+/// 会在**第一个**闭合标签处截断——表现和服务端截断一模一样，极难排查。
+/// 未配平（响应本身被截断）时返回剩余全部内容，宁多勿丢。
+String? _balancedInner(String source, String id) {
+  final open = RegExp("<(span|p|h3|div) id='${RegExp.escape(id)}'[^>]*>")
+      .firstMatch(source);
+  if (open == null) return null;
+  final tag = open.group(1)!;
+  final start = open.end;
+  final tagPattern = RegExp('</?$tag\\b[^>]*>');
+  var depth = 1;
+  for (final m in tagPattern.allMatches(source, start)) {
+    if (m.group(0)!.startsWith('</')) {
+      depth--;
+      if (depth == 0) return source.substring(start, m.start);
+    } else {
+      depth++;
+    }
+  }
+  return source.substring(start);
 }
 
 /// 提取 `commonui.userInfo.setAll( {...} )` 里的用户数据块。

@@ -41,6 +41,93 @@ commonui.userInfo.setAll(  {"111":{"uid":111,"username":"作者甲","credit":169
 </body></html>
 ''';
 
+/// 带楼中楼评论、热点回复、附件、以及正文含嵌套标签的信封。
+///
+/// 结构照抄真实 `__output=17` 响应（`tid=47981481`）：主楼下方先是
+/// `comment_for_0` 段（`div.comment_c`），再是 `hightlight_for_0` 段，
+/// 附件在 `ubbcode.attach.load('postattach0', ...)` 的脚本参数里。
+const String fixtureWithComments = '''
+<table class='forumbox postbox' cellspacing='1px'>
+<tr id='post1strow0' class='postrow row2'>
+<td class='c1'><span id='posterinfo0' class='posterinfo'><a href='nuke.php?func=ucp&uid=111' id='postauthor0' class='author b'></a></span></td>
+<td class='c2' id='postcontainer0'><a id='pid0Anchor'></a><a name='l0'></a>
+<div class='postInfo' id='postInfo0'><span id='postdate0' title='reply time'>2026-11-25 14:34</span></div>
+<span id='postcontentandsubject0'>
+<h3 id='postsubject0'>主楼标题</h3><br/>
+<p id='postcontent0' class='postcontent ubbcode'>[color=red]红字[/color]<br/>[collapse]折叠里还有[color=blue]蓝字[/color][/collapse]<br/>[img]./mon/a.jpg[/img]</p>
+<br/>
+</span><h4 class='silver subtitle postbodysubtitle'>附件</h4><span id='postattach0'></span><script>ubbcode.attach.load('postattach0','postcontent0',[ {aid:'',url:'mon_202611/25/7Q58-6mqnZdT1kShs-np.jpg',name:'7Q58-6mqnZdT1kShs-np.jpg',type:'img',thumb:'56',dscp:'',size:'127',url_utf8_org_name:'a%2ejpg'},{aid:'',url:'mon_202611/25/7Q59-1xi8.webp',name:'7Q59-1xi8.webp',type:'img',thumb:'120',dscp:'',size:'381',url_utf8_org_name:'image%2epng'}],'0','47981481','111','1795588487','0')</script><div class=clear></div>
+<span id='comment_for_0'><h4 class='silver subtitle postbodysubtitle'>评论</h4>
+<div class='comment_c left'>
+<span id='commentposterinfo_889118304' class='posterinfo'><a href='nuke.php?func=ucp&uid=65101124' id='commentauthor_889118304'>UID:65101124</a></span>
+<table class='comment_c_0'><tr><td class='comment_c_1'></td><td class='comment_c_2 c3'>
+<span id='postcommentcontentandsubject_889118304' class='comment_c_3'>
+<span class='c1 postInfo' id='commentInfo_889118304'><span title='reply time'>2026-11-26 18:53</span></span>
+<span id='postcommentsubject_889118304'></span>
+<span id='postcomment_889118304'>[b]Reply to [tid=47981481]Topic[/tid][/b]<br/><br/>爬完了楼，看明白了。</span>
+</span></td></tr></table>
+<script>commonui.postArg.proc( '_889118304',
+\$('postcommentcontainer_889118304'),\$('postcommentsubject_889118304'),\$('postcomment_889118304'),null,\$('commentposterinfo_889118304'),\$('commentInfo_889118304'),null,
+null,null,889118304,1,
+null,'65101124',1795690433,'0,0,0',null,
+'','',null,'',null,0,0 )
+</script>
+</div>
+<br class='commentblkoffset'/></span><span id='hightlight_for_0'><h4 class='silver subtitle postbodysubtitle'>热点回复</h4>
+<div class='comment_c left'>
+<span id='commentposterinfo__888980001' class='posterinfo'><a href='nuke.php?func=ucp&uid=7837005' id='commentauthor__888980001'>UID:7837005</a></span>
+<table class='comment_c_0'><tr><td class='comment_c_1'></td><td class='comment_c_2 c3'>
+<span id='postcommentcontentandsubject__888980001' class='comment_c_3'>
+<span class='c1 postInfo' id='commentInfo__888980001'><span title='reply time'>2026-11-25 14:58</span></span>
+<span id='postcommentsubject__888980001'></span>
+<span id='postcomment__888980001'>你说尼玛呢？正式服开荒灭团找原因搁你这成卷了？</span>
+</span></td></tr></table>
+<script>commonui.postArg.proc( '__888980001',
+\$('postcommentcontainer__888980001'),\$('postcommentsubject__888980001'),\$('postcomment__888980001'),null,\$('commentposterinfo__888980001'),\$('commentInfo__888980001'),null,
+null,null,888980001,0,
+null,'7837005',1795589895,'0,159,0',null,
+'','',null,'',null,0,1 )
+</script>
+</div>
+<br class='commentblkoffset'/>
+<div class='comment_c left'>
+<span id='commentposterinfo__888981581' class='posterinfo'><a href='nuke.php?func=ucp&uid=65173893' id='commentauthor__888981581'>UID:65173893</a></span>
+<table class='comment_c_0'><tr><td class='comment_c_1'></td><td class='comment_c_2 c3'>
+<span id='postcommentcontentandsubject__888981581' class='comment_c_3'>
+<span class='c1 postInfo' id='commentInfo__888981581'><span title='reply time'>2026-11-25 15:10</span></span>
+<span id='postcommentsubject__888981581'></span>
+<span id='postcomment__888981581'>高级战斗日志数据是暴雪自己的程序采集的信息。</span>
+</span></td></tr></table>
+<script>commonui.postArg.proc( '__888981581',
+\$('postcommentcontainer__888981581'),\$('postcommentsubject__888981581'),\$('postcomment__888981581'),null,\$('commentposterinfo__888981581'),\$('commentInfo__888981581'),null,
+null,null,888981581,64,
+null,'65173893',1795590607,'0,100,0',null,
+'','',null,'',null,0,1 )
+</script>
+</div>
+</span><div class=clear></div>
+</td>
+<script>commonui.postArg.proc( 0,
+\$('postcontainer0'),\$('postsubject0'),\$('postcontent0'),\$('postsign0'),\$('posterinfo0'),\$('postInfo0'),\$('postBtnPos0'),
+null,null,0,33562660,
+null,'111',1795588487,'0,24,0','148',
+'','','0 /','',null,0 )
+</script>
+</tr>
+<tr id='post1strow5' class='postrow row2'>
+<td class='c1'><span id='posterinfo5' class='posterinfo'><a href='nuke.php?func=ucp&uid=41725817' id='postauthor5' class='author b'></a></span></td>
+<td class='c2' id='postcontainer5'><a id='pid888979096Anchor'></a>
+<div class='postInfo' id='postInfo5'><span id='postdate5' title='reply time'>2026-11-25 14:41</span></div>
+<span id='postcontentandsubject5'>
+<h3 id='postsubject5'></h3><br/>
+<span id='postcontent5' class='postcontent ubbcode'>我也刚收到邮件。</span>
+</span></td>
+<script>\$('posterinfo5'),\$('postInfo5'),null, null,null,888979096,8192, null,'41725817',1795589457,'0,17,0','145', '','','0 /','',null,0 )</script>
+</tr>
+</table>
+<script>var __PAGE = {0:'/read.php?tid=47981481',1:13,2:1,3:20};</script>
+''';
+
 Map<String, dynamic> envelope({String? html}) => {
   "code": 521,
   "msg": "",
@@ -178,6 +265,283 @@ void main() {
         parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 1),
         isNull,
       );
+    });
+  });
+
+  group('楼中楼评论与热点回复', () {
+    final data = parseHtmlTopicDetail(
+      envelope(html: fixtureWithComments),
+      tid: 47981481,
+      page: 1,
+    )!;
+
+    test('主楼评论挂到楼层 0', () {
+      final comments = data.replyList['0']!.commentList;
+      expect(comments, hasLength(1));
+      final c = comments.first;
+      expect(c.pid, 889118304);
+      expect(c.authorId, 65101124, reason: 'uid 来自 commentauthor 链接');
+      expect(c.type, 1, reason: 'type 取自 postArg.proc 参数，不是按 suffix 猜');
+      expect(c.score, 0);
+      expect(c.postDateTimestamp, 1795690433);
+      expect(c.postDate, '2026-11-26 18:53');
+      expect(
+        c.content,
+        startsWith('[b]Reply to [tid=47981481]Topic[/tid][/b]'),
+      );
+      expect(c.content, contains('爬完了楼，看明白了。'));
+      expect(c.subject, '');
+      expect(c.tid, 47981481, reason: '评论要带 tid，否则引用展开/骰子会失效');
+    });
+
+    test('热点回复单独成表，且 type 用真值', () {
+      expect(data.hotReplyList, hasLength(2));
+      final first = data.hotReplyList.first;
+      expect(first.pid, 888980001);
+      expect(first.authorId, 7837005);
+      expect(first.type, 0);
+      expect(first.score, 159);
+      expect(first.postDateTimestamp, 1795589895);
+      expect(first.content, '你说尼玛呢？正式服开荒灭团找原因搁你这成卷了？');
+
+      // 实测 `__888981581` 的 type 是 64，按「热评=0」猜会错
+      expect(
+        data.hotReplyList[1].type,
+        64,
+        reason: 'type 必须从 postArg.proc 取；按 suffix 猜会得到 0',
+      );
+      expect(data.hotReplyList[1].score, 100);
+    });
+
+    test('热评不进楼层评论列表（两段互不串味）', () {
+      expect(data.replyList['0']!.commentList, hasLength(1));
+      expect(
+        data.replyList['0']!.commentList.first.pid,
+        889118304,
+        reason: 'comment_for_0 段之外的热评不能混进 commentList',
+      );
+    });
+
+    test('hotReplies（pid 列表）与 hotReplyList 一致', () {
+      expect(data.hotReplies, [888980001, 888981581]);
+    });
+
+    test('热评的 lou 用同页 pid→lou 反查补上', () {
+      // fixture 里 888980001 不在本页楼层中 → 反查不到，lou 与 o8 一致为 0
+      expect(
+        data.hotReplyList[0].lou,
+        0,
+        reason: 'o8 的 hotreply 对不在本页的热评同样下发 lou:0',
+      );
+      // 楼层 5 的 pid 在本页 → 能反查到
+      expect(data.replyList['5']!.pid, 888979096);
+      expect(data.replyList['5']!.lou, 5);
+    });
+
+    test('无评论无热评时两个列表都为空，不报错', () {
+      final plain = parseHtmlTopicDetail(envelope(), tid: 1, page: 1)!;
+      expect(plain.hotReplyList, isEmpty);
+      expect(plain.hotReplies, isEmpty);
+      expect(plain.replyList['0']!.commentList, isEmpty);
+    });
+  });
+
+  group('附件', () {
+    final data = parseHtmlTopicDetail(
+      envelope(html: fixtureWithComments),
+      tid: 47981481,
+      page: 1,
+    )!;
+
+    test('从 ubbcode.attach.load 解析出附件', () {
+      final attachments = data.replyList['0']!.attachmentList;
+      expect(attachments, hasLength(2));
+      final first = attachments.first;
+      expect(first.attachUrl, 'mon_202611/25/7Q58-6mqnZdT1kShs-np.jpg');
+      expect(first.name, '7Q58-6mqnZdT1kShs-np.jpg');
+      expect(first.type, 'img');
+      expect(first.size, 127);
+      expect(first.thumb, 56);
+      expect(first.path, 'mon_202611/25');
+      expect(first.ext, 'jpg');
+      expect(first.urlUtf8OrgName, 'a%2ejpg');
+      expect(
+        first.realUrl,
+        endsWith('/mon_202611/25/7Q58-6mqnZdT1kShs-np.jpg'),
+        reason: 'realUrl 拼的是图床前缀 + attachurl',
+      );
+    });
+
+    test('webp 附件的 ext 正确', () {
+      final second = data.replyList['0']!.attachmentList[1];
+      expect(second.ext, 'webp');
+      expect(second.thumb, 120);
+    });
+
+    test('无附件楼层为空列表', () {
+      expect(data.replyList['5']!.attachmentList, isEmpty);
+    });
+
+    test('附件脚本缺失时为空，不崩', () {
+      final html = fixtureWithComments.replaceFirst(
+        'ubbcode.attach.load(',
+        'noop.attach.load(',
+      );
+      final parsed = parseHtmlTopicDetail(
+        envelope(html: html),
+        tid: 1,
+        page: 1,
+      );
+      expect(parsed, isNotNull);
+      expect(parsed!.replyList['0']!.attachmentList, isEmpty);
+    });
+
+    test('附件数组里含 `]` 的文件名不提前截断', () {
+      final html = fixtureWithComments.replaceFirst(
+        "name:'7Q58-6mqnZdT1kShs-np.jpg'",
+        "name:'7Q58-6mqnZdT1kShs-np].jpg'",
+      );
+      final parsed = parseHtmlTopicDetail(
+        envelope(html: html),
+        tid: 1,
+        page: 1,
+      )!;
+      expect(
+        parsed.replyList['0']!.attachmentList,
+        hasLength(2),
+        reason: '按字符串状态扫描，`]` 在引号内不算数组结束',
+      );
+    });
+  });
+
+  group('正文配平扫描', () {
+    test('正文含嵌套标签时完整取出，不在第一个闭合标签处截断', () {
+      final data = parseHtmlTopicDetail(
+        envelope(html: fixtureWithComments),
+        tid: 1,
+        page: 1,
+      )!;
+      expect(
+        data.replyList['0']!.content,
+        '[color=red]红字[/color]<br/>[collapse]折叠里还有[color=blue]蓝字[/color][/collapse]<br/>[img]./mon/a.jpg[/img]',
+        reason: '老实现（非贪婪 + 遇第一个 </span>/</p>）只取到「[color=red]红字[/color]<br/>」',
+      );
+    });
+
+    test('正文里出现 <span> 标签时也不提前截断', () {
+      final html = fixtureWithComments.replaceFirst(
+        '<p id=\'postcontent0\' class=\'postcontent ubbcode\'>[color=red]红字[/color]',
+        '<p id=\'postcontent0\' class=\'postcontent ubbcode\'><span style=\'color:red\'>红字</span>',
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 1)!;
+      expect(
+        data.replyList['0']!.content,
+        startsWith('<span style=\'color:red\'>红字</span>'),
+      );
+      expect(
+        data.replyList['0']!.content,
+        contains('[img]./mon/a.jpg[/img]'),
+        reason: '嵌套 span 的闭合标签不能让匹配提前结束',
+      );
+    });
+
+    test('正文未闭合（响应被截断）：保留剩余全部内容，宁多勿丢', () {
+      final html = fixtureWithComments.replaceFirst('</p>\n<br/>', '');
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 1);
+      expect(data, isNotNull);
+      expect(data!.replyList['0']!.content, contains('[img]./mon/a.jpg[/img]'));
+    });
+
+    test('评论正文同样走配平，嵌套标签不截断', () {
+      final html = fixtureWithComments.replaceFirst(
+        '爬完了楼，看明白了。',
+        '<span>b</span>爬完了楼，看明白了。',
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 1)!;
+      final content = data.replyList['0']!.commentList.first.content;
+      expect(content, contains('<span>b</span>爬完了楼'));
+      expect(content, endsWith('看明白了。'));
+    });
+  });
+
+  group('评论/热评字段缺失防御', () {
+    test('proc 调用缺失：pid 回落到 suffix，其余字段仍能解析', () {
+      final html = fixtureWithComments.replaceFirst(
+        RegExp(r"commonui\.postArg\.proc\( '_889118304',[\s\S]*?\)\n</script>"),
+        '</script>',
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 1)!;
+      final comments = data.replyList['0']!.commentList;
+      expect(comments, hasLength(1));
+      expect(comments.first.pid, 889118304, reason: 'suffix 就是 pid');
+      expect(
+        comments.first.authorId,
+        65101124,
+        reason: 'proc 缺失时 uid 回落到 commentauthor 链接',
+      );
+      expect(comments.first.content, contains('爬完了楼'));
+    });
+
+    test('评论块无正文：内容为空串但楼层仍在', () {
+      final html = fixtureWithComments.replaceFirst(
+        "<span id='postcomment_889118304'>[b]Reply to [tid=47981481]Topic[/tid][/b]<br/><br/>爬完了楼，看明白了。</span>",
+        "<span id='postcomment_889118304'></span>",
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 1)!;
+      final comments = data.replyList['0']!.commentList;
+      expect(comments, hasLength(1));
+      expect(comments.first.content, '');
+      expect(comments.first.pid, 889118304);
+    });
+
+    test('评论段标记缺失：commentList 为空，楼层照常', () {
+      final html = fixtureWithComments.replaceFirst(
+        "<span id='comment_for_0'>",
+        "<span class='noop'>",
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 1)!;
+      expect(data.replyList['0']!.commentList, isEmpty);
+      expect(data.replyList['0']!.content, isNotEmpty);
+      expect(data.hotReplyList, hasLength(2), reason: '热评段独立，不受评论段影响');
+    });
+
+    test('热评段标记缺失时按评论段兜底（不丢数据）', () {
+      final html = fixtureWithComments.replaceFirst(
+        "<span id='hightlight_for_0'>",
+        "<span class='noop'>",
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 1)!;
+      // 两段的分界全靠 hightlight_for_N 标记；标记没了就无法区分，
+      // 此时宁可把热评当成评论一起展示，也不静默丢弃。
+      expect(data.hotReplyList, isEmpty);
+      expect(data.replyList['0']!.commentList, hasLength(3));
+      expect(
+        data.replyList['0']!.commentList.first.pid,
+        889118304,
+        reason: '真评论排在最前，顺序不乱',
+      );
+    });
+
+    test('pid 解析不出（suffix 非数字且无 proc）：整块跳过不塞脏数据', () {
+      final html = fixtureWithComments
+          .replaceFirst(
+            RegExp(
+              r"commonui\.postArg\.proc\( '_889118304',[\s\S]*?\)\n</script>",
+            ),
+            '</script>',
+          )
+          .replaceFirst(
+            "id='commentposterinfo_889118304'",
+            "id='commentposterinfo_'",
+          )
+          .replaceFirst(
+            "id='postcommentsubject_889118304'",
+            "id='postcommentsubject_'",
+          )
+          .replaceFirst("id='postcomment_889118304'", "id='postcomment_'")
+          .replaceFirst("id='commentInfo_889118304'", "id='commentInfo_'");
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 1)!;
+      expect(data.replyList['0']!.commentList, isEmpty);
     });
   });
 }
