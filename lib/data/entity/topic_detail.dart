@@ -27,7 +27,22 @@ class TopicDetailData {
   /// 的数据经常只有楼层没有它 —— 此时为 null，界面标题回落到路由参数，
   /// 热评列表为空。
   final Topic? topic;
+
+  /// 热点回复的 **pid 列表**（`__T.post_misc_var["17"]`）。只有 pid，没有正文，
+  /// 旧路径靠逐 pid 再请求一次 `read.php?__output=8&pid=..` 拿内容。
+  ///
+  /// 作为 [hotReplyList] 的兜底：o17 回退结果由解析器从 `hightlight_for_N`
+  /// 段补出同样内容（见 `html_topic_detail_parser.dart`），但当 o17 也失败、
+  /// 只能回落抢救数据时才只剩这个 pid 列表。
   final List<int> hotReplies;
+
+  /// 已在同一份响应里内联下发的热评楼层（`__R["0"]["hotreply"]`）。
+  ///
+  /// 这是 [hotReplies] 的正文版：有它就不必再逐 pid 请求（省 N 次网络往返），
+  /// 且楼层号/附件比 pid 通道更完整（pid 请求返回的 `lou` 恒为 0）。
+  /// o17 回退路径由解析器补出同样内容；只有截断抢救时为空，
+  /// 那时调用方回落到 [hotReplies]。
+  final List<Reply> hotReplyList;
 
   const TopicDetailData({
     this.global,
@@ -42,6 +57,7 @@ class TopicDetailData {
     required this.replyPageRows,
     this.topic,
     required this.hotReplies,
+    this.hotReplyList = const [],
   });
 
   factory TopicDetailData.fromJson(
@@ -104,23 +120,45 @@ class TopicDetailData {
         asJsonMap(entry.value, 'TopicDetailData.__R.${entry.key}'),
       );
     }
-    final topicMisc =
-        asJsonMapOrNull(
-          topicInfoMap["post_misc_var"],
-          'TopicDetailData.__T.post_misc_var',
-        ) ??
-        {};
+    // post_misc_var 用 OrEmpty：NGA 会把空关联数组编码成 `[]`，
+    // asJsonMapOrNull 只容忍 null，遇非 Map 会抛 FormatException 打崩整页。
+    final topicMisc = asJsonMapOrEmpty(
+      topicInfoMap["post_misc_var"],
+      'TopicDetailData.__T.post_misc_var',
+    );
     List<int> hotReplies = [];
-    if (topicMisc.containsKey("17")) {
-      String hots = topicMisc["17"];
+    // "17" 实测是逗号串，但服务端字段类型不稳，非 String 一律当没有，
+    // 不要无检查强转（会抛 type cast）。
+    final hotIds = topicMisc["17"];
+    if (hotIds is String) {
       hotReplies.addAll(
-        hots
+        hotIds
             .split(",")
             .where((e) => e.isNotEmpty)
             .map((e) => int.tryParse(e))
             .where((e) => e != null)
             .cast(),
       );
+    }
+    // 主楼对象里内联的热评楼层（有正文、有真实楼层号）。缺失时为空，
+    // 调用方回落到上面的 pid 列表。
+    final hotReplyList = <Reply>[];
+    final mainPost = replyMap["0"];
+    if (mainPost is Map) {
+      final inlineHots = asJsonMapOrEmpty(
+        mainPost["hotreply"],
+        'TopicDetailData.__R.0.hotreply',
+      );
+      for (final entry in inlineHots.entries) {
+        hotReplyList.add(
+          Reply.fromJson(
+            asJsonMap(
+              entry.value,
+              'TopicDetailData.__R.0.hotreply.${entry.key}',
+            ),
+          ),
+        );
+      }
     }
     return TopicDetailData(
       global: map["__GLOBAL"],
@@ -135,6 +173,7 @@ class TopicDetailData {
       truncated: truncated,
       topic: topicInfoMap.isEmpty ? null : Topic.fromJson(topicInfoMap),
       hotReplies: hotReplies,
+      hotReplyList: hotReplyList,
     );
   }
 

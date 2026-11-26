@@ -206,10 +206,20 @@ class TopicSinglePageNotifier extends Notifier<TopicSinglePageState> {
       medalSet: medals,
     );
 
-    if (key.page == 1 && data.hotReplies.isNotEmpty && key.authorid == null) {
-      unawaited(
-        _loadHotReplies(repository, data.hotReplies, generation: generation),
-      );
+    if (key.page == 1 && key.authorid == null) {
+      if (data.hotReplyList.isNotEmpty) {
+        // 同一份响应里已内联带下热评正文（`__R.0.hotreply`）——直接落地，
+        // 不发任何 pid 请求。这就是打开帖子少 1~4 次网络往返的来源。
+        state = state.copyWith(hotReplyList: data.hotReplyList);
+      } else if (cachedAt == null && data.hotReplies.isNotEmpty) {
+        // 老路：响应只有 pid 列表（o17 回退失败、只剩抢救数据时才会走到）。
+        // cachedAt != null 时跳过：缓存直出会立刻触发这条，让「先出缓存再
+        // 后台更新」反而多打 N 个请求且全是后台噪音；缓存里也没有内联热评
+        // （TopicDetailCache 存的是原始 o8 响应，当时有 hotreply 也已解析）。
+        unawaited(
+          _loadHotReplies(repository, data.hotReplies, generation: generation),
+        );
+      }
     }
   }
 
