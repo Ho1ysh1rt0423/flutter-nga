@@ -245,7 +245,15 @@ class TopicDataRepository implements TopicRepository {
       final Response<Map<String, dynamic>> response = await _dio.get(
         "read.php?__output=8&tid=$tid&page=$page${authorid == null ? "" : "&authorid=$authorid"}",
         options: Options(
-          extra: {NgaDioConfigurator.allowTruncatedRepairKey: true},
+          extra: {
+            NgaDioConfigurator.allowTruncatedRepairKey: true,
+            // 重试上限 0：截断是源站生成的一份坏对象，实测同一 tid 连续请求
+            // 多次拿回的字节数完全一致（换域名/换参数也一样），重试必然拿到
+            // 同一份坏数据，只会白等 0.9s + 2.5s 再走 o17。
+            // 设 0 后拦截器跳过等待，直接进入既有分支：先补闭合抢救，救不出
+            // 就以 truncationRejectedKey reject —— 下面两处 o17 回退已经接好。
+            NgaDioConfigurator.truncationMaxRetriesKey: 0,
+          },
         ),
       );
       final repaired =
@@ -325,7 +333,15 @@ class TopicDataRepository implements TopicRepository {
   }) async {
     final Response<Map<String, dynamic>> response = await _dio.get(
       "read.php?tid=$tid&page=$page${authorid == null ? "" : "&authorid=$authorid"}&__localres=1&__output=17",
-      options: Options(extra: {NgaDioConfigurator.htmlChannelKey: true}),
+      options: Options(
+        extra: {
+          NgaDioConfigurator.htmlChannelKey: true,
+          // o17 实测对截断免疫（40/40 完整），正常不会走到重试；但万一被
+          // 网络截断，默认的 0.9s + 2.5s 等待纯属白等——回退通道本身就是
+          // 最后的兜底，失败了就回落到抢救数据。
+          NgaDioConfigurator.truncationMaxRetriesKey: 0,
+        },
+      ),
     );
     return parseHtmlTopicDetail(response.data!, tid: tid, page: page);
   }
@@ -410,7 +426,11 @@ class TopicDataRepository implements TopicRepository {
       final Response<Map<String, dynamic>> response = await _dio.get(
         "read.php?__output=8&pid=$pid",
         options: Options(
-          extra: {NgaDioConfigurator.allowTruncatedRepairKey: true},
+          extra: {
+            NgaDioConfigurator.allowTruncatedRepairKey: true,
+            // 同 getTopicDetail：截断重试拿回同一份坏数据，直接走 o17 回退。
+            NgaDioConfigurator.truncationMaxRetriesKey: 0,
+          },
         ),
       );
       final repaired =
@@ -446,7 +466,13 @@ class TopicDataRepository implements TopicRepository {
   }) async {
     final Response<Map<String, dynamic>> response = await _dio.get(
       "read.php?pid=$pid&__localres=1&__output=17",
-      options: Options(extra: {NgaDioConfigurator.htmlChannelKey: true}),
+      options: Options(
+        extra: {
+          NgaDioConfigurator.htmlChannelKey: true,
+          // 同 _getTopicDetailViaHtmlChannel：回退通道不做截断重试。
+          NgaDioConfigurator.truncationMaxRetriesKey: 0,
+        },
+      ),
     );
     return parseHtmlTopicDetail(response.data!, tid: 0, page: 1);
   }
