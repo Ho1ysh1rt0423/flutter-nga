@@ -9,15 +9,22 @@ import 'package:flutter_nga/utils/json_cast.dart';
 ///
 /// `read.php?__output=17`（NGA 官方 App 详情页在用的输出格式）返回的是服务端
 /// 渲染好的楼层骨架：
-/// - 每层一行 `<tr id='post1strow{N}'>`，正文在 `id='postcontent{N}'` 里，
-///   内容是**原始 UBB**（和 `__output=8` 的 `content` 字段同源）；
+/// - 每层一行 `<tr id='post1strow{N}'>`，`N` 是**全局楼号**（翻页后继续往上
+///   累加，page=2 直接从 20 起；「只看作者」时才从 0 重排），正文在
+///   `id='postcontent{N}'` 里，内容是**原始 UBB**（和 `__output=8` 的
+///   `content` 字段同源）；
 /// - pid 在 `id='pid{pid}Anchor'` 锚点，作者 uid 在 `postauthor{N}` 的
 ///   `ucp&uid={uid}` 链接，发帖时间戳在楼层内联 JS 参数里；
+/// - **楼主 uid** 取 `commonui.postArg.setDefault(fid, stid, tid, tid, {authorid})`
+///   的第 4 个参数（翻页后恒定不变）。⚠️ 不能拿「本页第一楼」当楼主：
+///   page>1 时第一楼只是普通回复者，那样会把回复者标成楼主、真正的楼主反而
+///   没有标记；
 /// - 楼中楼评论在 `id='comment_for_{N}'` 段内（`div.comment_c`），
 ///   热点回复在 `id='hightlight_for_{N}'` 段内，两者字段同构；
 /// - 附件在同层的 `ubbcode.attach.load('postattach{N}', ...)` 脚本参数里，
 ///   与 `__output=8` 的 `attachs` 是同一批数据；
-/// - `commonui.userInfo.setAll({...})` 携带本页全部用户资料（键为 uid）；
+/// - `commonui.userInfo.setAll({...})` 携带本页全部用户资料（键为 uid）——
+///   只有本页出现的用户，page>1 时通常**不含楼主**，所以作者名可能为空；
 /// - `var __PAGE = {0:..., 1:总页数, 2:当前页, 3:每页行数}` 携带分页信息。
 ///
 /// 当 `__output=8` 的 JSON 被服务端截断（重试+抢救都失败）时，用本通道回退
@@ -49,28 +56,32 @@ TopicDetailData? parseHtmlTopicDetail(
   );
 
   final pageInfo = _extractPageInfo(html);
-  final floors = _extractFloors(
-    html,
-    page: page,
-    perPage: pageInfo?.$2,
-    tid: tid,
-    fid: fid,
-  );
+  final floors = _extractFloors(html, tid: tid, fid: fid);
   if (floors.isEmpty) return null;
 
   final perPage = pageInfo?.$2 ?? floors.length;
   final maxPage = pageInfo?.$1 ?? page;
   final rows = maxPage * perPage;
 
-  final firstUid = floors.first.uid;
-  final firstUser = firstUid == null ? null : rawUsers['$firstUid'];
+  // 楼主 uid 只能来自 `postArg.setDefault` 的专用参数：**本页第一楼在翻页后
+  // 就是普通回复者**，拿它当楼主会把第一个回复者标成「楼主」，真正的楼主
+  // 反倒没有标记（就是这一步引入的 bug）。
+  //
+  // page=1 时第一楼就是主楼，`setDefault` 缺失时仍可回落到它；page>1 时
+  // 拿不到楼主 uid 就留空（宁可没有标记，也不能标错人）。
+  final opUid =
+      _extractTopicAuthorUid(html) ?? (page == 1 ? floors.first.uid : null);
+  final opUser = opUid == null ? null : rawUsers['$opUid'];
   final topic = Topic.fromJson({
     "tid": tid,
     "fid": fid,
     "subject": envelope["htmlTitle"]?.toString() ?? '',
-    "author": firstUser is Map ? firstUser["username"]?.toString() ?? '' : '',
-    "authorid": firstUid,
-    "postdate": floors.first.postDateTimestamp,
+    // page>1 的 userInfo 块里没有楼主（服务端只下发本页出现的用户），
+    // 拿不到就留空，别用第一楼的名字顶替。
+    "author": opUser is Map ? opUser["username"]?.toString() ?? '' : '',
+    "authorid": opUid,
+    // 主楼发帖时间只有 page=1 能拿到，翻页后第一楼的时间是回复时间。
+    "postdate": page == 1 ? floors.first.postDateTimestamp : null,
     "replies": rows,
     "page": page,
   });
@@ -182,17 +193,14 @@ class _HtmlFloor {
 
 /// 按楼层行标记 `id='post1strow{N}'` 切块，每块内再提取各字段。
 ///
+/// `N` 是**全局楼层号**（实测 9 个帖子 × 3 页、27/27 与 o8 的 `lou` 完全一致：
+/// page=2 是 20..39，page=3 是 40..59），不是每页从 0 重排的页内序号——
+/// 只有「只看作者」（带 `authorid`）时才从 0 重新计，那种模式下 o8 的 `lou`
+/// 同样从 0 起算，两边一致。
+///
 /// 时间戳取自楼层内联 JS 参数（形如 `,'15403840',1794564555,`）。
-/// [perPage] 来自 `__PAGE`，用于换算跨页楼号；缺失时按本页楼层数兜底。
-List<_HtmlFloor> _extractFloors(
-  String html, {
-  required int page,
-  int? perPage,
-  required int tid,
-  int? fid,
-}) {
+List<_HtmlFloor> _extractFloors(String html, {required int tid, int? fid}) {
   final rowMarks = RegExp(r"id='post1strow(\d+)'").allMatches(html).toList();
-  final louPerPage = perPage ?? rowMarks.length;
   final floors = <_HtmlFloor>[];
   for (var i = 0; i < rowMarks.length; i++) {
     final mark = rowMarks[i];
@@ -228,8 +236,9 @@ List<_HtmlFloor> _extractFloors(
     floors.add(
       _HtmlFloor(
         indexKey: '$n',
-        // 楼层行编号每页从 0 重新计，全局楼号 = 前面页的行数 + 本页编号
-        lou: (page - 1) * (louPerPage <= 0 ? 1 : louPerPage) + n,
+        // 行号本身就是全局楼号（见函数注释），不要按页数再偏移一次：
+        // page=2 的 `post1strow20` 就是 20 楼，再乘 (page-1)*perPage 会翻倍。
+        lou: n,
         pid: pid,
         uid: uid,
         subject: subject,
@@ -519,6 +528,24 @@ Map<String, dynamic> _extractUserInfoBlock(String html) {
     }
   }
   return {};
+}
+
+/// 主题作者（楼主）的 uid。
+///
+/// `commonui.postArg.setDefault(fid, stid, tid, {tid}, {authorid}, ...)` 的
+/// 第 4 个参数是**主题作者 uid**，实测在 page 1/2/3 上都恒定不变
+/// （9 个帖子 × 3 页，27/27 与 o8 的 `__T.authorid` 一致）。
+/// 这是 HTML 里唯一权威的楼主标识，别拿第一楼作者顶替（翻页后就是另一个人）。
+///
+/// 解析失败返回 null（老版本页面 / 结构变化），调用方按页面位置兜底。
+int? _extractTopicAuthorUid(String html) {
+  final match = RegExp(
+    r"commonui\.postArg\.setDefault\(\s*-?\d+\s*,\s*-?\d+\s*,\s*-?\d+\s*,\s*(\d+)",
+  ).firstMatch(html);
+  if (match == null) return null;
+  final uid = int.tryParse(match.group(1)!);
+  if (uid == null || uid <= 0) return null;
+  return uid;
 }
 
 /// `var __PAGE = {0:..., 1:总页数, 2:当前页, 3:每页行数}`。

@@ -4,6 +4,9 @@ import 'package:flutter_nga/utils/parser/html_topic_detail_parser.dart';
 
 /// 与真实 `read.php?__output=17` 响应同构的最小信封（逆向自官方 App 的详情
 /// 页用法）。楼层骨架 + 原始 UBB + userInfo 数据块 + __PAGE 分页。
+///
+/// `postArg.setDefault(fid, stid, tid, {tid}, {authorid}, ...)` 的第 4 个参数
+/// 是主题作者 uid（111），翻到第 2 页也不变——它是唯一权威的楼主标识。
 const String fixtureHtml = '''
 <!DOCTYPE html><html><head></head><body>
 <script>
@@ -12,6 +15,9 @@ __CURRENT_FID=parseInt('414') __CURRENT_F_BIT=parseInt('33554664') __CURRENT_TID
 <script type='text/javascript'>
 //userinfostart
 commonui.userInfo.setAll(  {"111":{"uid":111,"username":"作者甲","credit":169083431,"medal":null,"reputation":"39_21000","groupid":-1,"memberid":39,"avatar":"https://img.nga.cn/avatars/2002/a.jpg","yz":4,"site":null,"honor":null,"regdate":1617865798,"mute_time":null,"postnum":24706,"rvrc":7149,"money":10730703,"thisvisit":1795260282,"signature":"I miss my cat","nickname":null,"bit_data":169083431},"222":{"uid":222,"username":"回复乙","credit":135266304,"medal":null,"reputation":"61_145","groupid":-1,"memberid":39,"avatar":"https://img.nga.cn/avatars/2002/b.jpg","yz":4,"site":null,"honor":null,"regdate":1670585315,"mute_time":null,"postnum":41,"rvrc":10,"money":0,"thisvisit":1794988510,"signature":null,"nickname":null,"bit_data":135266304}} );
+</script>
+<script type='text/javascript'>
+commonui.postArg.setDefault(414,0,47912491,111,2,"","",",222,","",null,8228,248,1795752900)
 </script>
 <table class='forumbox postbox' cellspacing='1px'>
 <tr id='post1strow0' class='postrow row0'>
@@ -187,11 +193,117 @@ void main() {
     });
   });
 
-  test('page=2 时楼号偏移按每页行数换算', () {
-    final data = parseHtmlTopicDetail(envelope(), tid: 1, page: 2)!;
-    expect(data.replyList['0']!.lou, 20);
-    expect(data.replyList['1']!.lou, 21);
+  // 实测（9 个帖子 × 3 页，27/27）：`post1strow{N}` 的 N 就是全局楼号，
+  // page=2 的响应里直接是 20..39，不需要按页偏移。
+  test('page=2 的 post1strow20 就是 20 楼（行号即全局楼号，不再叠加偏移）', () {
+    final html = fixtureHtml
+        .replaceAll("id='post1strow0'", "id='post1strow20'")
+        .replaceAll("id='post1strow1'", "id='post1strow21'")
+        .replaceAll('posterinfo0', 'posterinfo20')
+        .replaceAll('postInfo0', 'postInfo20')
+        .replaceAll('postBtnPos0', 'postBtnPos20')
+        .replaceAll('postdate0', 'postdate20')
+        .replaceAll('postsubject0', 'postsubject20')
+        .replaceAll('postcontent0', 'postcontent20')
+        .replaceAll('postcontent1', 'postcontent21')
+        .replaceAll('postcontainer1', 'postcontainer21')
+        .replaceAll('postInfo1', 'postInfo21')
+        .replaceAll('postBtnPos1', 'postBtnPos21')
+        .replaceAll('postdate1', 'postdate21')
+        .replaceAll('postsubject1', 'postsubject21')
+        .replaceAll('postcontentandsubject1', 'postcontentandsubject21');
+    final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 2)!;
+    expect(data.replyList.keys, ['20', '21']);
+    expect(data.replyList['20']!.lou, 20);
+    expect(data.replyList['21']!.lou, 21);
     expect(data.topic!.page, 2);
+  });
+
+  group('楼主标识（翻页后不能把第一楼当楼主）', () {
+    test('楼主 uid 取自 postArg.setDefault，不取第一楼作者', () {
+      final data = parseHtmlTopicDetail(envelope(), tid: 1, page: 2)!;
+      expect(data.replyList['0']!.authorId, 111);
+      expect(
+        data.topic!.authorId,
+        111,
+        reason: 'fixture 第一楼恰好也是楼主；换掉第一楼作者后仍应得到 111',
+      );
+
+      // 第一楼换成别人（真实 page>1 的样子）：楼主标记不能跟着跑掉
+      final flipped = fixtureHtml.replaceFirst(
+        "<a href='nuke.php?func=ucp&uid=111' id='postauthor0'",
+        "<a href='nuke.php?func=ucp&uid=222' id='postauthor0'",
+      );
+      final data2 = parseHtmlTopicDetail(
+        envelope(html: flipped),
+        tid: 1,
+        page: 2,
+      )!;
+      expect(data2.replyList['0']!.authorId, 222, reason: '第一楼现在不是楼主');
+      expect(data2.topic!.authorId, 111, reason: '楼主 uid 来自 setDefault，与第一楼无关');
+    });
+
+    test('setDefault 缺失 + page>1：不猜楼主（宁可无标记也不标错人）', () {
+      final html = fixtureHtml.replaceFirst(
+        RegExp(r"commonui\.postArg\.setDefault\([^)]*\)"),
+        '// removed',
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 2)!;
+      expect(data.topic!.authorId, isNull, reason: 'page>1 的第一楼不是楼主，不能顶替');
+      expect(data.topic!.author, '');
+    });
+
+    test('setDefault 缺失 + page=1：回落到第一楼（第一楼就是主楼）', () {
+      final html = fixtureHtml.replaceFirst(
+        RegExp(r"commonui\.postArg\.setDefault\([^)]*\)"),
+        '// removed',
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 1)!;
+      expect(data.topic!.authorId, 111);
+      expect(data.topic!.author, '作者甲');
+    });
+
+    test('page>1 的 userInfo 缺楼主：author 留空，不冒充别人', () {
+      final html = fixtureHtml.replaceFirst(
+        RegExp(r"commonui\.userInfo\.setAll\(.*?\);", dotAll: true),
+        '// removed',
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 2)!;
+      expect(
+        data.topic!.authorId,
+        111,
+        reason: 'uid 来自 setDefault，不依赖 userInfo',
+      );
+      expect(data.topic!.author, '');
+    });
+
+    test('page>1 不把第一楼的回复时间当成主楼发帖时间', () {
+      final data = parseHtmlTopicDetail(envelope(), tid: 1, page: 2)!;
+      expect(data.topic!.postDate, isNull);
+      final p1 = parseHtmlTopicDetail(envelope(), tid: 1, page: 1)!;
+      expect(p1.topic!.postDate, 1794564555);
+    });
+
+    // 真实响应第 5 个参数是位掩码（如 tid=47985561 的 67108897）而不是
+    // 引号包裹的空串——取值不能假设后面接什么。
+    test('setDefault 第 5 参是位掩码时仍取到楼主 uid', () {
+      final html = fixtureHtml.replaceFirst(
+        'setDefault(414,0,47912491,111,2,',
+        'setDefault(510587,0,47912491,111,67108897,',
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 2)!;
+      expect(data.topic!.authorId, 111);
+    });
+
+    test('setDefault 结构异常（参数不足）时不误取、不崩', () {
+      final html = fixtureHtml.replaceFirst(
+        RegExp(r"commonui\.postArg\.setDefault\([^)]*\)"),
+        "commonui.postArg.setDefault(414,0,47912491)",
+      );
+      final data = parseHtmlTopicDetail(envelope(html: html), tid: 1, page: 2)!;
+      expect(data.topic!.authorId, isNull, reason: '解析不出就不猜，避免标错人');
+      expect(data.replyList, hasLength(2), reason: '楼层照常解析');
+    });
   });
 
   group('字段缺失防御', () {
